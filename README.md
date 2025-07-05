@@ -1,5 +1,11 @@
 # Universal DJ USB Playlist Converter
 
+## WARNING: Este proyecto está full vibecoded con Claude Sonnet 4 a la hora de describir esto
+
+PRs bienvenidos, habran issues, hablemos, hagamos.
+
+## Brief
+
 A powerful, cross-platform application that converts Rekordbox prepared USB playlists to Traktor's NML format, making your music library compatible across different DJ software platforms.
 
 ## Features
