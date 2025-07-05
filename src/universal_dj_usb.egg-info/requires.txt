@@ -1,0 +1,16 @@
+click>=8.0.0
+tkinter-tooltip>=2.1.0
+lxml>=4.9.0
+pathlib2>=2.3.0
+colorama>=0.4.0
+rich>=13.0.0
+pydantic>=2.0.0
+toml>=0.10.0
+
+[dev]
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+pre-commit>=3.0.0

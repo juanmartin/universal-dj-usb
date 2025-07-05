@@ -1,0 +1,4 @@
+[console_scripts]
+udj = universal_dj_usb.cli:main
+udj-gui = universal_dj_usb.gui:main
+universal-dj-usb = universal_dj_usb.cli:main
