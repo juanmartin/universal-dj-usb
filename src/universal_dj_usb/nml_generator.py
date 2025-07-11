@@ -407,11 +407,24 @@ class TraktorNMLGenerator:
         # Convert to string and normalize slashes
         file_path_str = str(track_path).replace("\\", "/")
 
-        # Format the full path for Traktor's NML format (uses /: as separator)
-        # This should give us the complete key like /:Volumes/:JMSM_SANDIS/:Contents/:...
-        formatted_path = _format_traktor_file_path(file_path_str)
-
-        return formatted_path
+        # Format for PRIMARYKEY: Use volume name + path with /: separators (no leading /)
+        # Extract volume name from path
+        path_parts = track_path.parts
+        if len(path_parts) >= 3 and path_parts[1] == "Volumes":
+            volume_name = path_parts[2]
+            # Get the path relative to the volume
+            relative_parts = path_parts[3:]  # Skip /, Volumes, volume_name
+            if relative_parts:
+                relative_path = "/:" + "/:".join(relative_parts)
+                return f"{volume_name}{relative_path}"
+            else:
+                return volume_name
+        else:
+            # Fallback - remove leading slash for consistency
+            formatted_path = _format_traktor_file_path(file_path_str)
+            if formatted_path.startswith("/:"):
+                formatted_path = formatted_path[2:]  # Remove leading "/:
+            return formatted_path
 
     def _write_nml_file(self, nml: ET.Element, output_path: Path) -> bool:
         """Write the NML element to a file with proper formatting."""
@@ -433,10 +446,17 @@ class TraktorNMLGenerator:
             # Fix self-closing tags to use proper closing tags
             import re
 
-            # Convert <TAG /> to <TAG></TAG> for elements that should have closing tags
+            # Convert <TAG /> to <TAG></TAG> for ALL elements that should have closing tags
             # This regex handles attributes and whitespace properly
             pretty_xml = re.sub(
-                r"<(ALBUM|ARTIST|TITLE|GENRE|MODIFICATION_INFO|MUSICAL_KEY|TEMPO|CUE_V2|LOUDNESS|INFO)(\s+[^>]*?)?\s*/>",
+                r"<(HEAD|MUSICFOLDERS|LOCATION|ALBUM|ARTIST|TITLE|GENRE|MODIFICATION_INFO|MUSICAL_KEY|TEMPO|CUE_V2|LOUDNESS|INFO|SETS|INDEXING|PRIMARYKEY)(\s+[^>]*?)?\s*/>",
+                r"<\1\2></\1>",
+                pretty_xml,
+            )
+
+            # Additional pass to catch any remaining self-closing tags
+            pretty_xml = re.sub(
+                r"<([A-Z_]+)(\s+[^>]+?)\s*/>",
                 r"<\1\2></\1>",
                 pretty_xml,
             )
