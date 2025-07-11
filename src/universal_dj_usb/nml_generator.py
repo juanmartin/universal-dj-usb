@@ -28,11 +28,15 @@ def _format_traktor_path(path_str: str) -> str:
     if not path_str:
         return ""
 
-    # Split the path into parts
-    parts = path_str.strip("/").split("/")
+    # Normalize the path to ensure it starts with /
+    if not path_str.startswith("/"):
+        path_str = "/" + path_str
 
-    # Join with /: separator and add leading /:
-    if parts and parts[0]:  # Don't add /: if path is empty
+    # Split the path into parts, removing empty parts
+    parts = [part for part in path_str.split("/") if part]
+
+    # Join with /: separator and add leading /: and trailing /:
+    if parts:
         return "/:" + "/:".join(parts) + "/:"
     else:
         return ""
@@ -41,8 +45,6 @@ def _format_traktor_path(path_str: str) -> str:
 def _format_traktor_file_path(path_str: str) -> str:
     """
     Format a complete file path for Traktor's NML format.
-
-    Similar to _format_traktor_path but without trailing /: for file paths.
 
     Args:
         path_str: Standard file path string with forward slashes
@@ -53,11 +55,15 @@ def _format_traktor_file_path(path_str: str) -> str:
     if not path_str:
         return ""
 
-    # Split the path into parts
-    parts = path_str.strip("/").split("/")
+    # Normalize the path to ensure it starts with /
+    if not path_str.startswith("/"):
+        path_str = "/" + path_str
+
+    # Split the path into parts, removing empty parts
+    parts = [part for part in path_str.split("/") if part]
 
     # Join with /: separator and add leading /:
-    if parts and parts[0]:  # Don't add /: if path is empty
+    if parts:
         return "/:" + "/:".join(parts)
     else:
         return ""
@@ -181,28 +187,26 @@ class TraktorNMLGenerator:
         """Create a single track ENTRY element."""
         entry = ET.Element("ENTRY")
         entry.set("MODIFIED_DATE", datetime.now().strftime("%Y/%m/%d"))
-        entry.set("MODIFIED_TIME", "0")
+        # Generate a more realistic timestamp instead of "0"
+        import time
 
-        # Generate a placeholder AUDIO_ID - Traktor will replace this with actual fingerprint
-        # Using a consistent placeholder format that matches the reference structure
-        entry.set("AUDIO_ID", "PLACEHOLDER_AUDIO_ID")
+        entry.set(
+            "MODIFIED_TIME", str(int(time.time() % 86400))
+        )  # Seconds since start of day
+
+        # Remove AUDIO_ID completely - Traktor will generate this via audio analysis
+        # Don't include fake AUDIO_ID as it may cause Traktor to reject the entry        # Add title and artist attributes to the entry element itself (as seen in reference)
+        entry.set("TITLE", track.title or track.filename)
+        entry.set("ARTIST", track.artist or "Unknown Artist")
 
         # File location
         location = ET.SubElement(entry, "LOCATION")
 
-        if base_path and self.config.relative_paths:
-            # Create relative path from USB base path
-            try:
-                relative_path = track.file_path.relative_to(base_path)
-                file_path_str = str(relative_path)
-            except ValueError:
-                # Fallback if file is not relative to base path
-                file_path_str = str(track.file_path)
-        else:
-            file_path_str = str(track.file_path)
+        # For LOCATION DIR, we always want the absolute path
+        absolute_path = str(track.file_path)
 
         # Format the directory path for Traktor's NML format (uses /: as separator)
-        dir_path = _format_traktor_path(str(Path(file_path_str).parent))
+        dir_path = _format_traktor_path(str(Path(absolute_path).parent))
         location.set("DIR", dir_path)
         location.set("FILE", track.filename)
 
@@ -212,15 +216,28 @@ class TraktorNMLGenerator:
             location.set("VOLUME", volume_name)
             location.set("VOLUMEID", volume_name)
         else:
-            location.set("VOLUME", "")
-            location.set("VOLUMEID", "")
+            # Try to extract volume name from the track path
+            path_parts = track.file_path.parts
+            if len(path_parts) >= 3 and path_parts[1] == "Volumes":
+                volume_name = path_parts[2]
+                location.set("VOLUME", volume_name)
+                location.set("VOLUMEID", volume_name)
+            else:
+                location.set("VOLUME", "")
+                location.set("VOLUMEID", "")
 
         # Album - use proper structure as in reference
         album = ET.SubElement(entry, "ALBUM")
         if track.album:
             album.set("TITLE", track.album)
+            # Add TRACK attribute - use track number if available, otherwise use a default
+            if hasattr(track, "track_number") and track.track_number:
+                album.set("TRACK", str(track.track_number))
+            else:
+                album.set("TRACK", "1")  # Default track number
         else:
             album.set("TITLE", "Unknown Album")
+            album.set("TRACK", "1")  # Default track number
 
         # Add MODIFICATION_INFO as seen in reference
         modification_info = ET.SubElement(entry, "MODIFICATION_INFO")
@@ -233,11 +250,6 @@ class TraktorNMLGenerator:
         # Title
         title = ET.SubElement(entry, "TITLE")
         title.set("TITLE", track.title or track.filename)
-
-        # Genre
-        if track.genre:
-            genre = ET.SubElement(entry, "GENRE")
-            genre.set("TITLE", track.genre)
 
         # Genre
         if track.genre:
@@ -266,6 +278,10 @@ class TraktorNMLGenerator:
         if track.comment:
             info.set("COMMENT", track.comment)
 
+        # Add common attributes seen in reference files
+        info.set("FLAGS", "12")  # Common flag value seen in Traktor
+        info.set("IMPORT_DATE", datetime.now().strftime("%Y/%m/%d"))  # When imported
+
         # Musical key
         if track.key:
             musical_key = ET.SubElement(entry, "MUSICAL_KEY")
@@ -280,6 +296,12 @@ class TraktorNMLGenerator:
             tempo = ET.SubElement(entry, "TEMPO")
             tempo.set("BPM", f"{track.bpm:.2f}")
             tempo.set("BPM_QUALITY", "100.000000")
+
+        # Add LOUDNESS element (common in Traktor NML files)
+        loudness = ET.SubElement(entry, "LOUDNESS")
+        loudness.set("PEAK_DB", "-1.000000")  # Default placeholder values
+        loudness.set("PERCEIVED_DB", "-1.000000")
+        loudness.set("ANALYZED_DB", "-1.000000")
 
         return entry
 
@@ -366,34 +388,30 @@ class TraktorNMLGenerator:
         """Generate a simple UUID for playlists."""
         import uuid
 
-        return str(uuid.uuid4()).upper()
+        return str(uuid.uuid4()).replace("-", "").lower()
 
     def _generate_track_key(
         self, track: Track, base_path: Optional[Path] = None
     ) -> str:
         """Generate a track key for Traktor using proper NML path formatting."""
-        if base_path and self.config.relative_paths:
-            # Create relative path from USB base path
-            try:
-                relative_path = track.file_path.relative_to(base_path)
-                file_path_str = str(relative_path)
-            except ValueError:
-                # Fallback if file is not relative to base path
-                file_path_str = str(track.file_path)
-        else:
-            file_path_str = str(track.file_path)
+        # Get the absolute path of the track file (should be on the USB drive)
+        track_path = track.file_path
+
+        # Ensure we have an absolute path
+        if not track_path.is_absolute():
+            if base_path:
+                track_path = base_path / track_path
+            else:
+                track_path = track_path.resolve()
+
+        # Convert to string and normalize slashes
+        file_path_str = str(track_path).replace("\\", "/")
 
         # Format the full path for Traktor's NML format (uses /: as separator)
-        # The reference shows format like: "Macintosh HD/:Users/:juanmartin/:Desktop/:setMUSICA/:00_BAJADA/:02_BREAKIT/:True Computer (Heddah Remix) [1853778594].mp3"
-        # So we need to format the entire path including the filename
+        # This should give us the complete key like /:Volumes/:JMSM_SANDIS/:Contents/:...
         formatted_path = _format_traktor_file_path(file_path_str)
 
-        # For the key, we need to include volume and full path with filename
-        if base_path:
-            volume_name = base_path.name
-            return f"{volume_name}{formatted_path}"
-        else:
-            return formatted_path
+        return formatted_path
 
     def _write_nml_file(self, nml: ET.Element, output_path: Path) -> bool:
         """Write the NML element to a file with proper formatting."""
@@ -411,6 +429,17 @@ class TraktorNMLGenerator:
                     '<?xml version="1.0" ?>',
                     '<?xml version="1.0" encoding="UTF-8" standalone="no"?>',
                 )
+
+            # Fix self-closing tags to use proper closing tags
+            import re
+
+            # Convert <TAG /> to <TAG></TAG> for elements that should have closing tags
+            # This regex handles attributes and whitespace properly
+            pretty_xml = re.sub(
+                r"<(ALBUM|ARTIST|TITLE|GENRE|MODIFICATION_INFO|MUSICAL_KEY|TEMPO|CUE_V2|LOUDNESS|INFO)(\s+[^>]*?)?\s*/>",
+                r"<\1\2></\1>",
+                pretty_xml,
+            )
 
             # Remove extra blank lines
             lines = [line for line in pretty_xml.split("\n") if line.strip()]

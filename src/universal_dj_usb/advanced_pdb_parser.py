@@ -379,7 +379,25 @@ class AdvancedPDBParser:
         playlist_tracks = []
         for entry in playlist_entries:
             if entry.track_id in tracks_lookup:
-                playlist_tracks.append(tracks_lookup[entry.track_id])
+                track_meta = tracks_lookup[entry.track_id]
+
+                # Convert TrackMetadata to Track object with proper USB path
+                track = Track(
+                    title=track_meta.title,
+                    artist=track_meta.artist or "Unknown Artist",
+                    album=track_meta.album or "Unknown Album",
+                    file_path=self.usb_path / track_meta.file_path.lstrip("/"),
+                    genre=track_meta.genre,
+                    duration=track_meta.duration,
+                    bpm=track_meta.bpm,
+                    bitrate=track_meta.bitrate,
+                    sample_rate=track_meta.sample_rate,
+                    file_size=track_meta.file_size,
+                    year=track_meta.year,
+                    rating=track_meta.rating,
+                )
+
+                playlist_tracks.append(track)
 
         logger.info(
             f"Found {len(playlist_tracks)} tracks for playlist '{playlist_name}'"
@@ -424,7 +442,7 @@ class AdvancedPDBParser:
                             artist=track_meta.artist or "Unknown Artist",
                             album=track_meta.album or "Unknown Album",
                             file_path=self.usb_path / track_meta.file_path.lstrip("/"),
-                            filename=track_meta.filename,
+                            genre=track_meta.genre,
                             duration=track_meta.duration,
                             bpm=track_meta.bpm,
                             bitrate=track_meta.bitrate,
@@ -432,7 +450,6 @@ class AdvancedPDBParser:
                             file_size=track_meta.file_size,
                             year=track_meta.year,
                             rating=track_meta.rating,
-                            play_count=track_meta.play_count,
                         )
 
                         playlist_tracks.append(track)
