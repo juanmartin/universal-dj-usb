@@ -8,6 +8,7 @@ import time
 from .models import Playlist, PlaylistTree, ConversionConfig, ConversionResult
 from .rekordbox_parser import RekordboxParser, create_rekordbox_parser
 from .nml_generator import TraktorNMLGenerator, create_nml_generator
+from .m3u_generator import M3UGenerator, create_m3u_generator
 from .utils import (
     detect_usb_drives,
     validate_rekordbox_export,
@@ -154,20 +155,59 @@ class RekordboxToTraktorConverter:
 
             logger.info(f"Converting {len(playlists_to_convert)} playlists")
 
-            # Convert each playlist
-            nml_generator = create_nml_generator(self.config)
-            base_path = usb_drive_path if self.config.relative_paths else None
+            # Determine if we should use relative paths based on output location
+            # If output directory is on the USB drive, use relative paths for portability
+            # If output directory is elsewhere, use absolute paths
+            use_relative_paths = False
+            base_path = None
+
+            if self.config.relative_paths:
+                try:
+                    # Check if output directory is on the USB drive
+                    output_dir.relative_to(usb_drive_path)
+                    use_relative_paths = True
+                    base_path = usb_drive_path
+                    logger.info(
+                        f"Output directory is on USB drive, using relative paths"
+                    )
+                except ValueError:
+                    # Output directory is not on USB drive, use absolute paths
+                    use_relative_paths = False
+                    base_path = None
+                    logger.info(
+                        f"Output directory is not on USB drive, using absolute paths"
+                    )
+            else:
+                # Configuration explicitly requests absolute paths
+                use_relative_paths = False
+                base_path = None
+                logger.info(f"Configuration set to use absolute paths")
+
+            # Handle different output formats
+            formats_to_generate = []
+            if self.config.output_format.lower() == "all":
+                formats_to_generate = ["nml", "m3u", "m3u8"]
+            else:
+                formats_to_generate = [self.config.output_format.lower()]
 
             for playlist in playlists_to_convert:
-                # Generate output filename
-                safe_name = self._sanitize_filename(playlist.name)
-                output_path = output_dir / f"{safe_name}.nml"
+                for output_format in formats_to_generate:
+                    # Generate output filename with appropriate extension
+                    safe_name = self._sanitize_filename(playlist.name)
+                    if output_format == "nml":
+                        output_path = output_dir / f"{safe_name}.nml"
+                    elif output_format == "m3u":
+                        output_path = output_dir / f"{safe_name}.m3u"
+                    elif output_format == "m3u8":
+                        output_path = output_dir / f"{safe_name}.m3u8"
+                    else:
+                        continue  # Skip unsupported formats
 
-                # Convert playlist
-                result = self._convert_single_playlist_with_generator(
-                    playlist, nml_generator, output_path, base_path
-                )
-                results.append(result)
+                    # Convert playlist
+                    result = self._convert_single_playlist_with_format(
+                        playlist, output_path, base_path, output_format
+                    )
+                    results.append(result)
 
             # Log summary
             successful = sum(1 for r in results if r.success)
@@ -210,6 +250,54 @@ class RekordboxToTraktorConverter:
                     success=False,
                     playlist_name=playlist.name,
                     error_message="Failed to generate NML file",
+                )
+
+        except Exception as e:
+            return ConversionResult(
+                success=False, playlist_name=playlist.name, error_message=str(e)
+            )
+
+    def _convert_single_playlist_with_format(
+        self,
+        playlist: Playlist,
+        output_path: Path,
+        base_path: Optional[Path],
+        output_format: str,
+    ) -> ConversionResult:
+        """Convert a single playlist using the specified output format."""
+        try:
+            if output_format.lower() == "nml":
+                nml_generator = create_nml_generator(self.config)
+                success = nml_generator.generate_nml(playlist, output_path, base_path)
+            elif output_format.lower() == "m3u":
+                m3u_generator = create_m3u_generator(self.config)
+                success = m3u_generator.generate_m3u(
+                    playlist, output_path, base_path, extended=False
+                )
+            elif output_format.lower() == "m3u8":
+                m3u_generator = create_m3u_generator(self.config)
+                success = m3u_generator.generate_m3u(
+                    playlist, output_path, base_path, extended=True
+                )
+            else:
+                return ConversionResult(
+                    success=False,
+                    playlist_name=playlist.name,
+                    error_message=f"Unsupported output format: {output_format}",
+                )
+
+            if success:
+                return ConversionResult(
+                    success=True,
+                    playlist_name=playlist.name,
+                    output_file=output_path,
+                    track_count=len(playlist.tracks),
+                )
+            else:
+                return ConversionResult(
+                    success=False,
+                    playlist_name=playlist.name,
+                    error_message=f"Failed to generate {output_format.upper()} file",
                 )
 
         except Exception as e:

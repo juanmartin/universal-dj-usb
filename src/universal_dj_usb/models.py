@@ -159,7 +159,7 @@ class ConversionConfig:
     include_loops: bool = True
     file_naming: str = "playlist_name"  # or "sequential"
     encoding: str = "utf-8"
-    output_format: str = "nml"
+    output_format: str = "nml"  # nml, m3u, m3u8, or all
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "ConversionConfig":

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 )
 @click.pass_context
 def cli(ctx: click.Context, debug: bool, config: Optional[str]) -> None:
-    """Universal DJ USB Playlist Converter - Convert Rekordbox playlists to Traktor NML format."""
+    """Universal DJ USB Playlist Converter - Convert Rekordbox playlists to various formats (NML, M3U, M3U8)."""
     # Set up logging
     log_level = "DEBUG" if debug else "INFO"
     logging.basicConfig(
@@ -63,12 +63,19 @@ def cli(ctx: click.Context, debug: bool, config: Optional[str]) -> None:
     "--output",
     "-o",
     type=click.Path(file_okay=False, dir_okay=True),
-    help="Output directory for NML files",
+    help="Output directory for playlist files",
 )
 @click.option(
     "--playlist", "-p", multiple=True, help="Specific playlist names to convert"
 )
 @click.option("--list-only", "-l", is_flag=True, help="List available playlists only")
+@click.option(
+    "--format",
+    "-f",
+    type=click.Choice(["nml", "m3u", "m3u8", "all"], case_sensitive=False),
+    default="nml",
+    help="Output format: nml (Traktor), m3u (basic), m3u8 (extended), or all formats",
+)
 @click.pass_context
 def convert(
     ctx: click.Context,
@@ -76,11 +83,15 @@ def convert(
     output: Optional[str],
     playlist: tuple,
     list_only: bool,
+    format: str,
 ) -> None:
-    """Convert Rekordbox playlists to Traktor NML format."""
+    """Convert Rekordbox playlists to various formats (NML, M3U, M3U8)."""
 
     usb_drive_path = Path(usb_path)
     config = ctx.obj["config"]
+
+    # Update the output format in the config
+    config.output_format = format.lower()
 
     # Initialize converter
     converter = RekordboxToTraktorConverter(config)

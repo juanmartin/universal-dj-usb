@@ -218,13 +218,16 @@ Commands:
 
 Usage: python -m universal_dj_usb.cli convert [OPTIONS] USB_PATH
 
-  Convert Rekordbox playlists to Traktor NML format.
+  Convert Rekordbox playlists to various formats (NML, M3U, M3U8).
 
 Options:
-  -o, --output DIRECTORY  Output directory for NML files
-  -p, --playlist TEXT     Specific playlist names to convert
-  -l, --list-only         List available playlists only
-  --help                  Show this message and exit.
+  -o, --output DIRECTORY          Output directory for playlist files
+  -p, --playlist TEXT             Specific playlist names to convert
+  -l, --list-only                 List available playlists only
+  -f, --format [nml|m3u|m3u8|all]
+                                  Output format: nml (Traktor), m3u (basic),
+                                  m3u8 (extended), or all formats
+  --help                          Show this message and exit.
 
 > python -m universal_dj_usb.cli export-playlist --help
 
