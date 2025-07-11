@@ -68,6 +68,34 @@ The application depends on the rekordcrate Rust library for parsing Rekordbox da
 - Parses PIONEER/rekordbox/export.pdb files
 - Extracts playlist structure and track metadata
 
+### rekordcrate CLI
+
+The CLI interface for rekordcrate is used to parse Rekordbox playlists:
+
+The CLI is built and can be run as follows:
+
+`<path-to-repo>/rekordcrate/target/release/rekordcrate help`
+
+The help returns the following output:
+
+```bash
+Library for parsing Pioneer Rekordbox device exports
+
+Usage: rekordcrate <COMMAND>
+
+Commands:
+  list-playlists  List the playlist tree from a Pioneer Database (`.PDB`) file
+  dump-anlz       Parse and dump a Rekordbox Analysis (`ANLZXXXX.DAT`) file
+  dump-pdb        Parse and dump a Pioneer Database (`.PDB`) file
+  dump-setting    Parse and dump a Pioneer Settings (`*SETTING.DAT`) file
+  dump-xml        Parse and dump a Pioneer XML (`*.xml`) file
+  help            Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
 ### Rekordbox File Structure
 
 ```
@@ -160,3 +188,53 @@ config = ConversionConfig(
 - Configuration can be loaded from TOML files
 - Cross-platform USB detection works but may need refinement
 - NML generation follows Traktor's XML schema requirements
+
+## Created CLI Reference
+
+```bash
+
+> python -m universal_dj_usb.cli --help
+
+Usage: python -m universal_dj_usb.cli [OPTIONS] COMMAND [ARGS]...
+
+  Universal DJ USB Playlist Converter - Convert Rekordbox playlists to Traktor
+  NML format.
+
+Options:
+  --debug        Enable debug output
+  --config PATH  Path to configuration file
+  --help         Show this message and exit.
+
+Commands:
+  config-info      Display current configuration information.
+  convert          Convert Rekordbox playlists to Traktor NML format.
+  detect           Detect USB drives with Rekordbox exports.
+  export-playlist  Export a specific playlist to a text file for manual...
+  info             Get detailed information about a specific playlist.
+  list-playlists   List all available playlists on a USB drive.
+
+
+> python -m universal_dj_usb.cli convert --help
+
+Usage: python -m universal_dj_usb.cli convert [OPTIONS] USB_PATH
+
+  Convert Rekordbox playlists to Traktor NML format.
+
+Options:
+  -o, --output DIRECTORY  Output directory for NML files
+  -p, --playlist TEXT     Specific playlist names to convert
+  -l, --list-only         List available playlists only
+  --help                  Show this message and exit.
+
+> python -m universal_dj_usb.cli export-playlist --help
+
+Usage: python -m universal_dj_usb.cli export-playlist [OPTIONS] USB_PATH
+                                                      PLAYLIST_NAME
+
+  Export a specific playlist to a text file for manual verification.
+
+Options:
+  -o, --output PATH  Output file path
+  --help             Show this message and exit.
+
+```

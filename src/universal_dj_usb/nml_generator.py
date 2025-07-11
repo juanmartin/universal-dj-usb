@@ -13,6 +13,56 @@ from .utils import normalize_path, sanitize_filename
 logger = logging.getLogger(__name__)
 
 
+def _format_traktor_path(path_str: str) -> str:
+    """
+    Format a path for Traktor's NML format.
+
+    Traktor uses /: as the separator between directories.
+
+    Args:
+        path_str: Standard path string with forward slashes
+
+    Returns:
+        Formatted path string for Traktor NML format
+    """
+    if not path_str:
+        return ""
+
+    # Split the path into parts
+    parts = path_str.strip("/").split("/")
+
+    # Join with /: separator and add leading /:
+    if parts and parts[0]:  # Don't add /: if path is empty
+        return "/:" + "/:".join(parts) + "/:"
+    else:
+        return ""
+
+
+def _format_traktor_file_path(path_str: str) -> str:
+    """
+    Format a complete file path for Traktor's NML format.
+
+    Similar to _format_traktor_path but without trailing /: for file paths.
+
+    Args:
+        path_str: Standard file path string with forward slashes
+
+    Returns:
+        Formatted file path string for Traktor NML format
+    """
+    if not path_str:
+        return ""
+
+    # Split the path into parts
+    parts = path_str.strip("/").split("/")
+
+    # Join with /: separator and add leading /:
+    if parts and parts[0]:  # Don't add /: if path is empty
+        return "/:" + "/:".join(parts)
+    else:
+        return ""
+
+
 class TraktorNMLGenerator:
     """Generates Traktor NML files from playlist data."""
 
@@ -52,9 +102,16 @@ class TraktorNMLGenerator:
             collection = self._create_collection(playlist.tracks, base_path)
             nml.append(collection)
 
+            # Add empty SETS section (as seen in reference)
+            sets = ET.SubElement(nml, "SETS")
+            sets.set("ENTRIES", "0")
+
             # Add playlists section
-            playlists = self._create_playlists_section(playlist)
+            playlists = self._create_playlists_section(playlist, base_path)
             nml.append(playlists)
+
+            # Add empty INDEXING section (as seen in reference)
+            indexing = ET.SubElement(nml, "INDEXING")
 
             # Write to file
             return self._write_nml_file(nml, output_path)
@@ -99,14 +156,16 @@ class TraktorNMLGenerator:
     def _add_header(self, nml: ET.Element) -> None:
         """Add header information to the NML."""
         head = ET.SubElement(nml, "HEAD")
-        head.set("COMPANY", "Native Instruments")
+        head.set("COMPANY", "www.native-instruments.com")
         head.set("PROGRAM", "Traktor")
-        head.set("VERSION", "3.11.0")
+
+        # Add empty MUSICFOLDERS element as seen in reference
+        musicfolders = ET.SubElement(nml, "MUSICFOLDERS")
 
     def _create_collection(
         self, tracks: List[Track], base_path: Optional[Path] = None
     ) -> ET.Element:
-        """Create the COLLECTION element with all tracks."""
+        """Create the COLLECTION element with tracks from the playlist only."""
         collection = ET.Element("COLLECTION")
         collection.set("ENTRIES", str(len(tracks)))
 
@@ -123,30 +182,62 @@ class TraktorNMLGenerator:
         entry = ET.Element("ENTRY")
         entry.set("MODIFIED_DATE", datetime.now().strftime("%Y/%m/%d"))
         entry.set("MODIFIED_TIME", "0")
-        entry.set("AUDIO_ID", "INVALID")  # Traktor will generate this
+
+        # Generate a placeholder AUDIO_ID - Traktor will replace this with actual fingerprint
+        # Using a consistent placeholder format that matches the reference structure
+        entry.set("AUDIO_ID", "PLACEHOLDER_AUDIO_ID")
 
         # File location
         location = ET.SubElement(entry, "LOCATION")
-        file_path = normalize_path(
-            track.file_path, base_path, self.config.relative_paths
-        )
-        location.set("DIR", f"/{Path(file_path).parent}/")
-        location.set("FILE", track.filename)
-        location.set("VOLUME", "")
-        location.set("VOLUMEID", "")
 
-        # Album
+        if base_path and self.config.relative_paths:
+            # Create relative path from USB base path
+            try:
+                relative_path = track.file_path.relative_to(base_path)
+                file_path_str = str(relative_path)
+            except ValueError:
+                # Fallback if file is not relative to base path
+                file_path_str = str(track.file_path)
+        else:
+            file_path_str = str(track.file_path)
+
+        # Format the directory path for Traktor's NML format (uses /: as separator)
+        dir_path = _format_traktor_path(str(Path(file_path_str).parent))
+        location.set("DIR", dir_path)
+        location.set("FILE", track.filename)
+
+        # Set volume information based on USB drive
+        if base_path:
+            volume_name = base_path.name
+            location.set("VOLUME", volume_name)
+            location.set("VOLUMEID", volume_name)
+        else:
+            location.set("VOLUME", "")
+            location.set("VOLUMEID", "")
+
+        # Album - use proper structure as in reference
+        album = ET.SubElement(entry, "ALBUM")
         if track.album:
-            album = ET.SubElement(entry, "ALBUM")
             album.set("TITLE", track.album)
+        else:
+            album.set("TITLE", "Unknown Album")
+
+        # Add MODIFICATION_INFO as seen in reference
+        modification_info = ET.SubElement(entry, "MODIFICATION_INFO")
+        modification_info.set("AUTHOR_TYPE", "user")
 
         # Artist
         artist = ET.SubElement(entry, "ARTIST")
-        artist.set("TITLE", track.artist)
+        artist.set("TITLE", track.artist or "Unknown Artist")
 
         # Title
         title = ET.SubElement(entry, "TITLE")
-        title.set("TITLE", track.title)
+        title.set("TITLE", track.title or track.filename)
+
+        # Genre
+        if track.genre:
+            genre = ET.SubElement(entry, "GENRE")
+            genre.set("TITLE", track.genre)
 
         # Genre
         if track.genre:
@@ -236,12 +327,23 @@ class TraktorNMLGenerator:
         }
         return color_map.get(color.lower(), "0")
 
-    def _create_playlists_section(self, playlist: Playlist) -> ET.Element:
-        """Create the PLAYLISTS section."""
+    def _create_playlists_section(
+        self, playlist: Playlist, base_path: Optional[Path] = None
+    ) -> ET.Element:
+        """Create the PLAYLISTS section with proper folder structure."""
         playlists = ET.Element("PLAYLISTS")
 
-        # Create a NODE for the playlist
-        node = ET.SubElement(playlists, "NODE")
+        # Create the root folder node as seen in reference
+        root_node = ET.SubElement(playlists, "NODE")
+        root_node.set("TYPE", "FOLDER")
+        root_node.set("NAME", "$ROOT")
+
+        # Add subnodes container
+        subnodes = ET.SubElement(root_node, "SUBNODES")
+        subnodes.set("COUNT", "1")
+
+        # Create a NODE for the playlist within the root folder
+        node = ET.SubElement(subnodes, "NODE")
         node.set("TYPE", "PLAYLIST")
         node.set("NAME", playlist.name)
 
@@ -256,7 +358,7 @@ class TraktorNMLGenerator:
             entry = ET.SubElement(playlist_element, "ENTRY")
             primarykey = ET.SubElement(entry, "PRIMARYKEY")
             primarykey.set("TYPE", "TRACK")
-            primarykey.set("KEY", self._generate_track_key(track))
+            primarykey.set("KEY", self._generate_track_key(track, base_path))
 
         return playlists
 
@@ -266,10 +368,32 @@ class TraktorNMLGenerator:
 
         return str(uuid.uuid4()).upper()
 
-    def _generate_track_key(self, track: Track) -> str:
-        """Generate a track key for Traktor."""
-        # Use file path as the key (Traktor will map this)
-        return str(track.file_path)
+    def _generate_track_key(
+        self, track: Track, base_path: Optional[Path] = None
+    ) -> str:
+        """Generate a track key for Traktor using proper NML path formatting."""
+        if base_path and self.config.relative_paths:
+            # Create relative path from USB base path
+            try:
+                relative_path = track.file_path.relative_to(base_path)
+                file_path_str = str(relative_path)
+            except ValueError:
+                # Fallback if file is not relative to base path
+                file_path_str = str(track.file_path)
+        else:
+            file_path_str = str(track.file_path)
+
+        # Format the full path for Traktor's NML format (uses /: as separator)
+        # The reference shows format like: "Macintosh HD/:Users/:juanmartin/:Desktop/:setMUSICA/:00_BAJADA/:02_BREAKIT/:True Computer (Heddah Remix) [1853778594].mp3"
+        # So we need to format the entire path including the filename
+        formatted_path = _format_traktor_file_path(file_path_str)
+
+        # For the key, we need to include volume and full path with filename
+        if base_path:
+            volume_name = base_path.name
+            return f"{volume_name}{formatted_path}"
+        else:
+            return formatted_path
 
     def _write_nml_file(self, nml: ET.Element, output_path: Path) -> bool:
         """Write the NML element to a file with proper formatting."""
@@ -277,16 +401,19 @@ class TraktorNMLGenerator:
             # Convert to string with proper formatting
             rough_string = ET.tostring(nml, encoding="unicode")
             reparsed = minidom.parseString(rough_string)
-            pretty_xml = reparsed.toprettyxml(
-                indent="  ", encoding=self.config.encoding
-            )
+
+            # Generate pretty XML with proper declaration
+            pretty_xml = reparsed.toprettyxml(indent="  ", encoding=None)
+
+            # Replace the default XML declaration with the one matching the reference
+            if pretty_xml.startswith('<?xml version="1.0" ?>'):
+                pretty_xml = pretty_xml.replace(
+                    '<?xml version="1.0" ?>',
+                    '<?xml version="1.0" encoding="UTF-8" standalone="no"?>',
+                )
 
             # Remove extra blank lines
-            lines = [
-                line
-                for line in pretty_xml.decode(self.config.encoding).split("\n")
-                if line.strip()
-            ]
+            lines = [line for line in pretty_xml.split("\n") if line.strip()]
             pretty_xml = "\n".join(lines)
 
             # Write to file

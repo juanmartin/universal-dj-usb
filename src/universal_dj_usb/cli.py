@@ -56,7 +56,8 @@ def cli(ctx: click.Context, debug: bool, config: Optional[str]) -> None:
 
 @cli.command()
 @click.argument(
-    "usb_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+    "usb_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, readable=False),
 )
 @click.option(
     "--output",
@@ -135,7 +136,8 @@ def convert(
 
 @cli.command()
 @click.argument(
-    "usb_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+    "usb_path",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, readable=False),
 )
 def list_playlists(usb_path: str) -> None:
     """List all available playlists on a USB drive."""
@@ -258,6 +260,61 @@ def config_info() -> None:
             rprint(f"  [cyan]{section}:[/cyan]")
             for key, value in values.items():
                 rprint(f"    {key}: {value}")
+
+
+@cli.command()
+@click.argument("usb_path", type=click.Path(exists=True, file_okay=False))
+@click.argument("playlist_name", type=str)
+@click.option("-o", "--output", type=click.Path(), help="Output file path")
+@click.pass_context
+def export_playlist(ctx, usb_path, playlist_name, output):
+    """Export a specific playlist to a text file for manual verification."""
+    from pathlib import Path
+    from rich.console import Console
+
+    console = Console()
+
+    try:
+        # Import parser here to avoid circular imports
+        from .advanced_pdb_parser import AdvancedPDBParser
+
+        usb_path = Path(usb_path)
+
+        # Check if PDB file exists
+        pdb_file = usb_path / "PIONEER" / "rekordbox" / "export.pdb"
+        if not pdb_file.exists():
+            console.print(f"❌ PDB file not found: {pdb_file}", style="red")
+            return
+
+        # Set output file
+        if output:
+            output_file = Path(output)
+        else:
+            output_file = Path(f"{playlist_name.replace(' ', '_')}.txt")
+
+        console.print(f"📁 Parsing PDB file: {pdb_file}")
+
+        # Parse with advanced parser
+        parser = AdvancedPDBParser(pdb_file, usb_path)
+
+        console.print(f"📝 Exporting playlist '{playlist_name}' to {output_file}")
+
+        # Export playlist
+        success = parser.export_playlist_to_txt(playlist_name, output_file)
+
+        if success:
+            console.print(
+                f"✅ Playlist exported successfully to {output_file}", style="green"
+            )
+        else:
+            console.print(f"❌ Failed to export playlist", style="red")
+
+    except Exception as e:
+        console.print(f"❌ Error: {e}", style="red")
+        if ctx.obj["debug"]:
+            import traceback
+
+            console.print(traceback.format_exc(), style="red")
 
 
 def _list_playlists(
