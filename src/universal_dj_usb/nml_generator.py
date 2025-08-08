@@ -212,13 +212,15 @@ class TraktorNMLGenerator:
 
         # For LOCATION DIR, we need the path relative to the volume (not absolute)
         absolute_path = str(track.file_path)
-        
+
         # Extract path relative to volume
         path_parts = track.file_path.parts
         if len(path_parts) >= 3 and path_parts[1] == "Volumes":
             # For /Volumes/VOLUME_NAME/path/to/file, we want /path/to/parent/
             volume_name = path_parts[2]
-            relative_parts = path_parts[3:-1]  # Skip /, Volumes, volume_name, and filename
+            relative_parts = path_parts[
+                3:-1
+            ]  # Skip /, Volumes, volume_name, and filename
             if relative_parts:
                 dir_path = "/:" + "/:".join(relative_parts) + "/:"
             else:
@@ -226,7 +228,7 @@ class TraktorNMLGenerator:
         else:
             # Fallback for non-volume paths - use parent directory
             dir_path = _format_traktor_path(str(Path(absolute_path).parent))
-        
+
         location.set("DIR", dir_path)
         location.set("FILE", track.filename)
 
