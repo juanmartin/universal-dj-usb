@@ -8,10 +8,16 @@ version = "0.1.0"
 description = "Universal DJ USB playlist converter - Convert Rekordbox playlists to Traktor NML format"
 readme = "README.md"
 requires-python = ">=3.8"
-authors = [
-    {name = "Universal DJ USB", email = "info@universal-dj-usb.com"},
+authors = [{ name = "Universal DJ USB", email = "info@universal-dj-usb.com" }]
+keywords = [
+    "dj",
+    "playlist",
+    "rekordbox",
+    "traktor",
+    "nml",
+    "music",
+    "converter",
 ]
-keywords = ["dj", "playlist", "rekordbox", "traktor", "nml", "music", "converter"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
@@ -35,6 +41,7 @@ dependencies = [
     "rich>=13.0.0",
     "pydantic>=2.0.0",
     "toml>=0.10.0",
+    "kaitaistruct>=0.10.0",
 ]
 
 [project.optional-dependencies]

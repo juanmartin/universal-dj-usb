@@ -1,0 +1,3 @@
+[submodule "external/rekordcrate"]
+	path = external/rekordcrate
+	url = https://github.com/Holzhaus/rekordcrate.git
