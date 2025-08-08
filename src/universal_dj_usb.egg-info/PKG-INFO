@@ -31,6 +31,7 @@ Requires-Dist: colorama>=0.4.0
 Requires-Dist: rich>=13.0.0
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: toml>=0.10.0
+Requires-Dist: kaitaistruct>=0.10.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
@@ -41,6 +42,12 @@ Requires-Dist: pre-commit>=3.0.0; extra == "dev"
 Dynamic: license-file
 
 # Universal DJ USB Playlist Converter
+
+## WARNING: Este proyecto está full vibecoded con Claude Sonnet 4 a la hora de describir esto
+
+PRs bienvenidos, habran issues, hablemos, hagamos.
+
+## Brief
 
 A powerful, cross-platform application that converts Rekordbox prepared USB playlists to Traktor's NML format, making your music library compatible across different DJ software platforms.
 

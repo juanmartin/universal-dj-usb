@@ -2,9 +2,11 @@ LICENSE
 README.md
 pyproject.toml
 src/universal_dj_usb/__init__.py
+src/universal_dj_usb/advanced_pdb_parser.py
 src/universal_dj_usb/cli.py
 src/universal_dj_usb/converter.py
 src/universal_dj_usb/gui.py
+src/universal_dj_usb/m3u_generator.py
 src/universal_dj_usb/models.py
 src/universal_dj_usb/nml_generator.py
 src/universal_dj_usb/rekordbox_parser.py
@@ -15,4 +17,6 @@ src/universal_dj_usb.egg-info/dependency_links.txt
 src/universal_dj_usb.egg-info/entry_points.txt
 src/universal_dj_usb.egg-info/requires.txt
 src/universal_dj_usb.egg-info/top_level.txt
+src/universal_dj_usb/pdb_parser/__init__.py
+src/universal_dj_usb/pdb_parser/rekordbox_pdb.py
 tests/test_universal_dj_usb.py

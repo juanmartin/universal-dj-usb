@@ -6,6 +6,7 @@ colorama>=0.4.0
 rich>=13.0.0
 pydantic>=2.0.0
 toml>=0.10.0
+kaitaistruct>=0.10.0
 
 [dev]
 pytest>=7.0.0
