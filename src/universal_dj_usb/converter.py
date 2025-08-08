@@ -192,16 +192,30 @@ class RekordboxToTraktorConverter:
 
             for playlist in playlists_to_convert:
                 for output_format in formats_to_generate:
-                    # Generate output filename with appropriate extension
+                    # Generate output filename with appropriate extension and format suffix
                     safe_name = self._sanitize_filename(playlist.name)
-                    if output_format == "nml":
-                        output_path = output_dir / f"{safe_name}.nml"
-                    elif output_format == "m3u":
-                        output_path = output_dir / f"{safe_name}.m3u"
-                    elif output_format == "m3u8":
-                        output_path = output_dir / f"{safe_name}.m3u8"
+
+                    # Add format suffix if generating multiple formats ("all" mode)
+                    if len(formats_to_generate) > 1:
+                        # Use format suffix for multiple formats (e.g., "TEST-nml.nml")
+                        if output_format == "nml":
+                            output_path = output_dir / f"{safe_name}-nml.nml"
+                        elif output_format == "m3u":
+                            output_path = output_dir / f"{safe_name}-m3u.m3u"
+                        elif output_format == "m3u8":
+                            output_path = output_dir / f"{safe_name}-m3u8.m3u8"
+                        else:
+                            continue  # Skip unsupported formats
                     else:
-                        continue  # Skip unsupported formats
+                        # Single format mode - use standard naming
+                        if output_format == "nml":
+                            output_path = output_dir / f"{safe_name}.nml"
+                        elif output_format == "m3u":
+                            output_path = output_dir / f"{safe_name}.m3u"
+                        elif output_format == "m3u8":
+                            output_path = output_dir / f"{safe_name}.m3u8"
+                        else:
+                            continue  # Skip unsupported formats
 
                     # Convert playlist
                     result = self._convert_single_playlist_with_format(

@@ -84,6 +84,7 @@ class M3UGenerator:
         output_dir: Path,
         base_path: Optional[Path] = None,
         extended: bool = False,
+        format_suffix: Optional[str] = None,
     ) -> List[Path]:
         """
         Generate M3U files for multiple playlists.
@@ -93,6 +94,7 @@ class M3UGenerator:
             output_dir: Directory to save M3U files
             base_path: Base path for relative file paths
             extended: Whether to generate extended M3U format
+            format_suffix: Optional suffix to add to filename (e.g., "m3u" for "all" format mode)
 
         Returns:
             List of successfully created M3U file paths
@@ -102,11 +104,15 @@ class M3UGenerator:
 
         for i, playlist in enumerate(playlists):
             if self.config.file_naming == "sequential":
-                filename = f"{i+1:03d}_{sanitize_filename(playlist.name)}.m3u{'8' if extended else ''}"
+                base_name = f"{i+1:03d}_{sanitize_filename(playlist.name)}"
             else:
-                filename = (
-                    f"{sanitize_filename(playlist.name)}.m3u{'8' if extended else ''}"
-                )
+                base_name = sanitize_filename(playlist.name)
+
+            # Add format suffix if specified (for "all" format mode)
+            if format_suffix:
+                filename = f"{base_name}-{format_suffix}.m3u{'8' if extended else ''}"
+            else:
+                filename = f"{base_name}.m3u{'8' if extended else ''}"
 
             output_path = output_dir / filename
 

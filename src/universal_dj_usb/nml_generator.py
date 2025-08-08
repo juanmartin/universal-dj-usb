@@ -131,6 +131,7 @@ class TraktorNMLGenerator:
         playlists: List[Playlist],
         output_dir: Path,
         base_path: Optional[Path] = None,
+        format_suffix: Optional[str] = None,
     ) -> List[Path]:
         """
         Generate NML files for multiple playlists.
@@ -139,6 +140,7 @@ class TraktorNMLGenerator:
             playlists: List of playlists to convert
             output_dir: Directory to save NML files
             base_path: Base path for relative file paths
+            format_suffix: Optional suffix to add to filename (e.g., "nml" for "all" format mode)
 
         Returns:
             List of successfully created NML file paths
@@ -148,9 +150,15 @@ class TraktorNMLGenerator:
 
         for i, playlist in enumerate(playlists):
             if self.config.file_naming == "sequential":
-                filename = f"{i+1:03d}_{sanitize_filename(playlist.name)}.nml"
+                base_name = f"{i+1:03d}_{sanitize_filename(playlist.name)}"
             else:
-                filename = f"{sanitize_filename(playlist.name)}.nml"
+                base_name = sanitize_filename(playlist.name)
+
+            # Add format suffix if specified (for "all" format mode)
+            if format_suffix:
+                filename = f"{base_name}-{format_suffix}.nml"
+            else:
+                filename = f"{base_name}.nml"
 
             output_path = output_dir / filename
 
@@ -202,11 +210,23 @@ class TraktorNMLGenerator:
         # File location
         location = ET.SubElement(entry, "LOCATION")
 
-        # For LOCATION DIR, we always want the absolute path
+        # For LOCATION DIR, we need the path relative to the volume (not absolute)
         absolute_path = str(track.file_path)
-
-        # Format the directory path for Traktor's NML format (uses /: as separator)
-        dir_path = _format_traktor_path(str(Path(absolute_path).parent))
+        
+        # Extract path relative to volume
+        path_parts = track.file_path.parts
+        if len(path_parts) >= 3 and path_parts[1] == "Volumes":
+            # For /Volumes/VOLUME_NAME/path/to/file, we want /path/to/parent/
+            volume_name = path_parts[2]
+            relative_parts = path_parts[3:-1]  # Skip /, Volumes, volume_name, and filename
+            if relative_parts:
+                dir_path = "/:" + "/:".join(relative_parts) + "/:"
+            else:
+                dir_path = "/:"
+        else:
+            # Fallback for non-volume paths - use parent directory
+            dir_path = _format_traktor_path(str(Path(absolute_path).parent))
+        
         location.set("DIR", dir_path)
         location.set("FILE", track.filename)
 
@@ -465,8 +485,9 @@ class TraktorNMLGenerator:
             lines = [line for line in pretty_xml.split("\n") if line.strip()]
             pretty_xml = "\n".join(lines)
 
-            # Write to file
-            with open(output_path, "w", encoding=self.config.encoding) as f:
+            # Write to file with UTF-8 encoding (required for Traktor compatibility)
+            # Use UTF-8 without BOM to match Traktor's expected format
+            with open(output_path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(pretty_xml)
 
             logger.info(f"Successfully wrote NML file: {output_path}")
