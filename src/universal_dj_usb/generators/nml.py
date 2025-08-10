@@ -16,7 +16,10 @@ class NMLGenerator(BaseGenerator):
     @property
     def file_extension(self) -> str:
         """Return the file extension for NML format."""
-        return "-NML.nml"
+        if self.config.use_format_suffix:
+            return "-NML.nml"
+        else:
+            return ".nml"
 
     def generate(
         self, playlist: Playlist, output_path: Path, usb_path: Path = None
@@ -58,7 +61,7 @@ class NMLGenerator(BaseGenerator):
             # Add all tracks to collection
             for track in playlist.tracks:
                 self._add_track_to_collection(
-                    collection, track, output_path, warnings, volume_name
+                    collection, track, output_path, warnings, volume_name, usb_path
                 )
 
             # Add empty SETS section
@@ -155,6 +158,7 @@ class NMLGenerator(BaseGenerator):
         output_path: Path,
         warnings: list,
         volume_name: str = "",
+        usb_path: Path = None,
     ) -> None:
         """Add a track entry to the collection."""
         # Get file path
@@ -166,9 +170,18 @@ class NMLGenerator(BaseGenerator):
         # Convert to Traktor path format
         traktor_path = self._format_traktor_path(file_path)
 
-        # Check if file exists
-        # if not track.file_path.exists():
-        #     warnings.append(f"File not found: {track.file_path}")
+        # Check if file exists (only add warning for debug purposes)
+        if usb_path:
+            # Construct proper absolute path
+            track_path_str = str(track.file_path)
+            if track_path_str.startswith("/"):
+                track_path_str = track_path_str[1:]  # Remove leading slash
+            absolute_file_path = usb_path / track_path_str
+        else:
+            absolute_file_path = track.file_path
+
+        if not absolute_file_path.exists():
+            warnings.append(f"File not found: {absolute_file_path}")
 
         # Create entry element
         entry = ET.SubElement(

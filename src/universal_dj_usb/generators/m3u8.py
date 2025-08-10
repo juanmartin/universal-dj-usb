@@ -13,7 +13,10 @@ class M3U8Generator(BaseGenerator):
     @property
     def file_extension(self) -> str:
         """Return the file extension for M3U8 format."""
-        return ".m3u8"
+        if hasattr(self.config, "use_format_suffix") and self.config.use_format_suffix:
+            return "-M3U8.m3u8"
+        else:
+            return ".m3u8"
 
     def generate(
         self, playlist: Playlist, output_path: Path, usb_path: Path = None

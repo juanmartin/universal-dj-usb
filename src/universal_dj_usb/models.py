@@ -146,6 +146,7 @@ class ConversionConfig:
     file_naming: str = "playlist_name"  # or "sequential"
     encoding: str = "utf-8"
     output_format: str = "nml"  # nml, m3u, m3u8, or all
+    use_format_suffix: bool = False  # Whether to append format suffix to filenames
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "ConversionConfig":

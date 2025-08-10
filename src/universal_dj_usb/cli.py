@@ -20,10 +20,22 @@ logger = logging.getLogger(__name__)
 
 def setup_logging(debug: bool = False) -> None:
     """Set up logging configuration."""
-    log_level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(
-        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    if debug:
+        # Debug mode: show all logs
+        log_level = logging.DEBUG
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+    else:
+        # Normal mode: only show warnings and errors, suppress INFO from parser
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        # Set parser to WARNING level to hide INFO messages
+        parser_logger = logging.getLogger("universal_dj_usb.parser")
+        parser_logger.setLevel(logging.WARNING)
 
 
 @click.group()
@@ -128,14 +140,25 @@ def list_playlists(usb_path: Path) -> None:
     default=True,
     help="Use relative or absolute file paths",
 )
+@click.option(
+    "--use-format-suffix",
+    is_flag=True,
+    default=False,
+    help="Append format suffix to filenames (e.g., -NML.nml for Traktor compatibility)",
+)
+@click.pass_context
 def convert(
+    ctx: click.Context,
     usb_path: Path,
     output: Optional[Path],
     playlist: tuple,
     format: str,
     relative_paths: bool,
+    use_format_suffix: bool,
 ) -> None:
     """Convert Rekordbox playlists to specified format(s)."""
+    debug = ctx.obj.get("debug", False)
+
     # Set default output path
     if output is None:
         output = Path.cwd() / "converted_playlists"
@@ -184,7 +207,9 @@ def convert(
 
     # Create configuration
     config = ConversionConfig(
-        relative_paths=relative_paths, output_format=format.lower()
+        relative_paths=relative_paths,
+        output_format=format.lower(),
+        use_format_suffix=use_format_suffix,
     )
 
     # Create generators
@@ -216,7 +241,8 @@ def convert(
                     console.print(
                         f"[green]✓[/green] {playlist_obj.name} → {result.output_file.name}"
                     )
-                    if result.warnings:
+                    # Only show warnings in debug mode
+                    if debug and result.warnings:
                         for warning in result.warnings:
                             console.print(f"  [yellow]⚠[/yellow] {warning}")
                 else:
@@ -226,19 +252,41 @@ def convert(
 
                 progress.advance(task)
 
-    # Summary
+    # Improved Summary
     successful = sum(1 for r in results if r.success)
     total = len(results)
+    failed = total - successful
 
     console.print()
-    console.print(
-        Panel(
-            f"[bold green]Conversion complete![/bold green]\\n"
-            f"Successfully converted: {successful}/{total}\\n"
-            f"Output directory: {output}",
-            title="Summary",
+    if successful == total:
+        console.print(
+            f"[bold green]✅ Successfully converted {successful} playlist{'s' if successful != 1 else ''}[/bold green]"
         )
-    )
+    else:
+        console.print(
+            f"[yellow]⚠ Converted {successful}/{total} playlists ({failed} failed)[/yellow]"
+        )
+
+    # Show basic info for each successful conversion
+    for result in results:
+        if result.success:
+            console.print(
+                f"[cyan]📁 {result.playlist_name}[/cyan]: {result.track_count} tracks → {result.output_file.name}"
+            )
+
+    console.print(f"[dim]Output directory: {output}[/dim]")
+
+    # Debug info
+    if debug:
+        console.print(f"\n[dim]Debug Info:[/dim]")
+        console.print(f"[dim]• Input path: {usb_path}[/dim]")
+        console.print(f"[dim]• Format: {format}[/dim]")
+        console.print(f"[dim]• Relative paths: {relative_paths}[/dim]")
+        console.print(f"[dim]• Use format suffix: {use_format_suffix}[/dim]")
+        if any(r.warnings for r in results):
+            console.print(
+                f"[dim]• Total warnings: {sum(len(r.warnings) for r in results)}[/dim]"
+            )
 
 
 @cli.command()
