@@ -61,3 +61,4 @@ test_data/
 converted_playlists/
 output/
 backup_old/
+src/universal_dj_usb/__pycache__/
