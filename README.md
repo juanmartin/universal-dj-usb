@@ -2,168 +2,227 @@
 
 ## WARNING: Este proyecto está full vibecoded con Claude Sonnet 4 a la hora de describir esto
 
+Igual muchos cambios a mano y el debugging y testeo es manual.
 PRs bienvenidos, habran issues, hablemos, hagamos.
 
-## Brief
-
-A powerful, cross-platform application that converts Rekordbox prepared USB playlists to Traktor's NML format, making your music library compatible across different DJ software platforms.
+A modern Python tool for converting Rekordbox USB playlists to various formats including Traktor NML, M3U, and M3U8.
 
 ## Features
 
-- **Universal Compatibility**: Convert Rekordbox playlists to Traktor NML format
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-- **Smart Path Handling**: Automatically handles relative paths and different OS slash conventions
-- **Dual Interface**: Command-line tool for power users and GUI for everyone else
-- **USB Drive Support**: Directly reads from Rekordbox prepared USB drives
-- **Batch Processing**: Convert multiple playlists at once
-- **Metadata Preservation**: Keeps track information, cue points, and playlist structure
+- **Parse Rekordbox USB drives**: Automatically detect and parse Rekordbox database files (`.pdb`)
+- **Multiple output formats**: Convert to Traktor NML, M3U, or M3U8 playlists
+- **Cross-platform**: Works on Windows, macOS, and Linux
+- **Preserve metadata**: Keep track information, cue points, and BPM data
+- **Flexible paths**: Support for both relative and absolute file paths
+- **CLI interface**: Easy-to-use command-line interface with rich output
 
 ## Installation
 
-### From PyPI (Recommended)
+### Requirements
+
+- Python 3.8+
+- Poetry (recommended) or pip
+
+### Using Poetry (Recommended)
 
 ```bash
-pip install universal-dj-usb
+# Clone the repository
+git clone https://github.com/yourusername/universal-dj-usb.git
+cd universal-dj-usb
+
+# Install dependencies
+poetry install
+
+# Activate the virtual environment
+poetry shell
 ```
 
-### From Source
+### Using pip
 
 ```bash
-git clone https://github.com/universal-dj-usb/universal-dj-usb.git
+# Clone the repository
+git clone https://github.com/yourusername/universal-dj-usb.git
 cd universal-dj-usb
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\\Scripts\\activate
+
+# Install dependencies
 pip install -e .
 ```
 
 ## Usage
 
-### Command Line Interface
+### Basic Usage
 
 ```bash
-# Convert all playlists from a USB drive
-universal-dj-usb /path/to/usb/drive --output /path/to/output/folder
+# List available playlists on a USB drive
+udj list-playlists /path/to/usb/drive
 
-# Convert specific playlists
-universal-dj-usb /path/to/usb/drive --playlist "House Music" --playlist "Techno"
+# Convert all playlists to Traktor NML format
+udj convert /path/to/usb/drive
 
-# Use short command
-udj /path/to/usb/drive -o /path/to/output
+# Convert specific playlists to M3U format
+udj convert /path/to/usb/drive -p "My Playlist" -p "Another Playlist" -f m3u
+
+# Convert to all formats
+udj convert /path/to/usb/drive -f all -o ./output
 ```
 
-### Graphical User Interface
+### Commands
+
+#### `detect`
+
+Detect and validate Rekordbox data on a USB drive.
 
 ```bash
-# Launch GUI
-universal-dj-usb-gui
-# or
-udj-gui
+udj detect /path/to/usb/drive
 ```
 
-The GUI provides a user-friendly interface where you can:
+#### `list-playlists`
 
-- Select your USB drive
-- Choose which playlists to convert
-- Set output directory
-- Monitor conversion progress
+List all available playlists on the USB drive.
 
-## Requirements
+```bash
+udj list-playlists /path/to/usb/drive
+```
 
-- Python 3.8 or higher
-- Rekordbox prepared USB drive
-- Rust toolchain (for rekordcrate library)
+#### `convert`
 
-## Dependencies
+Convert playlists to specified format(s).
 
-The application uses the powerful [rekordcrate](https://github.com/Holzhaus/rekordcrate) Rust library to parse Rekordbox database files and extract playlist information.
+```bash
+udj convert [OPTIONS] USB_PATH
 
-## How It Works
+Options:
+  -o, --output PATH           Output directory for playlist files
+  -p, --playlist TEXT         Specific playlist names to convert (multiple allowed)
+  -f, --format [nml|m3u|m3u8|all]  Output format (default: nml)
+  --relative-paths/--absolute-paths  Use relative or absolute file paths (default: relative)
+```
 
-1. **USB Detection**: Automatically detects Rekordbox prepared USB drives
-2. **Database Parsing**: Uses rekordcrate to parse the `PIONEER/rekordbox/export.pdb` file
-3. **Playlist Extraction**: Extracts playlist tree structure and track relationships
-4. **Path Normalization**: Converts absolute paths to relative paths compatible with different OS
-5. **NML Generation**: Creates Traktor-compatible NML files with proper XML structure
+#### `info`
+
+Get detailed information about a specific playlist.
+
+```bash
+udj info /path/to/usb/drive "Playlist Name"
+```
+
+### Examples
+
+```bash
+# Convert all playlists to Traktor NML format
+udj convert /Volumes/USB_DRIVE -f nml -o ~/TraktorPlaylists
+
+# Convert specific playlists to M3U8 format
+udj convert /Volumes/USB_DRIVE -p "House Music" -p "Techno Sets" -f m3u8
+
+# Get information about a playlist
+udj info /Volumes/USB_DRIVE "My Weekend Mix"
+```
 
 ## File Structure
 
-```text
+The tool expects a standard Rekordbox USB drive structure:
+
+```
 USB Drive/
 ├── PIONEER/
-│   ├── rekordbox/
-│   │   └── export.pdb          # Main database file
-│   └── USBANLZ/                # Analysis files
+│   └── rekordbox/
+│       └── export.pdb          # Main database file
 └── Music/                      # Your music files
+    ├── track1.mp3
+    ├── track2.mp3
+    └── ...
 ```
 
-## Output Format
+## Output Formats
 
-The converter generates `.nml` files that can be imported directly into Traktor Pro. Each playlist becomes a separate NML file with:
+### Traktor NML (`.nml`)
 
-- Playlist name and structure
-- Track metadata (title, artist, album, etc.)
-- Relative file paths for cross-platform compatibility
-- Cue points and loops (if available)
+- Native Traktor playlist format
+- Includes full metadata, cue points, and BPM information
+- Compatible with Traktor Pro versions
 
-## Advanced Usage
+### M3U (`.m3u`)
 
-### Configuration File
+- Basic playlist format supported by most DJ software and media players
+- Includes track duration and basic metadata
 
-Create a `config.toml` file to customize conversion settings:
+### M3U8 (`.m3u8`)
 
-```toml
-[conversion]
-relative_paths = true
-preserve_folder_structure = true
-include_cue_points = true
-include_loops = true
+- Extended M3U format with UTF-8 encoding
+- Includes additional metadata like album, year, genre, and BPM
+- Better cross-platform compatibility
 
-[output]
-file_naming = "playlist_name"  # or "sequential"
-encoding = "utf-8"
-```
+## Development
 
-### Batch Processing
+### Setting up for Development
 
 ```bash
-# Process multiple USB drives
-for drive in /media/usb*; do
-    udj "$drive" -o "/home/user/playlists/$(basename "$drive")"
-done
+# Clone the repository
+git clone https://github.com/yourusername/universal-dj-usb.git
+cd universal-dj-usb
+
+# Install development dependencies
+poetry install --with dev
+
+# Run tests
+poetry run pytest
+
+# Run linting and formatting
+poetry run black src/
+poetry run isort src/
+poetry run flake8 src/
 ```
+
+### Running Tests
+
+```bash
+poetry run pytest
+poetry run pytest --cov=src/universal_dj_usb
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests and linting
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- This project uses Kaitai Struct definitions for parsing Rekordbox PDB files
+- Thanks to the Pioneer DJ community for reverse engineering the Rekordbox format
+- Built with Python, Click, Rich, and lxml
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"No Rekordbox database found"**: Ensure the USB drive was prepared with Rekordbox
-2. **"Permission denied"**: Run with appropriate permissions to read the USB drive
-3. **"Invalid playlist format"**: Check if the playlist contains unsupported characters
+1. **"No Rekordbox database found"**
+   - Ensure your USB drive contains a proper Rekordbox export
+   - Check that the `PIONEER/rekordbox/export.pdb` file exists
 
-### Debug Mode
+2. **"Failed to parse database"**
+   - The PDB file might be corrupted or from an unsupported Rekordbox version
+   - Try exporting again from Rekordbox
 
-```bash
-udj /path/to/usb --debug --verbose
-```
+3. **File paths not working**
+   - Use the `--relative-paths` option for better cross-platform compatibility
+   - Ensure your music files are in the expected location on the USB drive
 
-## Contributing
+### Getting Help
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- [rekordcrate](https://github.com/Holzhaus/rekordcrate) - Rust library for parsing Rekordbox exports
-- [Deep Symmetry](https://github.com/Deep-Symmetry) - Pioneer format research
-- DJ community for testing and feedback
-
-## Support
-
-- 📧 Email: [support@universal-dj-usb.com](mailto:support@universal-dj-usb.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/universal-dj-usb/universal-dj-usb/issues)
-- 💬 Discord: [Join our community](https://discord.gg/universal-dj-usb)
-
----
-
-Made with ❤️ by DJs, for DJs
+- Open an issue on GitHub with detailed information about your problem
+- Include the USB drive structure and any error messages
+- Specify your operating system and Python version

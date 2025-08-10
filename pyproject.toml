@@ -1,96 +1,52 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project]
+[tool.poetry]
 name = "universal-dj-usb"
-version = "0.1.0"
-description = "Universal DJ USB playlist converter - Convert Rekordbox playlists to Traktor NML format"
+version = "0.2.0"
+description = "Convert Rekordbox USB playlists to various formats (NML, M3U, M3U8)"
+authors = ["Juan Martin <your-email@example.com>"]
 readme = "README.md"
-requires-python = ">=3.8"
-authors = [{ name = "Universal DJ USB", email = "info@universal-dj-usb.com" }]
-keywords = [
-    "dj",
-    "playlist",
-    "rekordbox",
-    "traktor",
-    "nml",
-    "music",
-    "converter",
-]
+license = "MIT"
+homepage = "https://github.com/juanmartin/universal-dj-usb"
+repository = "https://github.com/juanmartin/universal-dj-usb"
+keywords = ["dj", "playlist", "rekordbox", "traktor", "nml", "m3u", "converter"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Multimedia :: Sound/Audio",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
-dependencies = [
-    "click>=8.0.0",
-    "tkinter-tooltip>=2.1.0",
-    "lxml>=4.9.0",
-    "pathlib2>=2.3.0",
-    "colorama>=0.4.0",
-    "rich>=13.0.0",
-    "pydantic>=2.0.0",
-    "toml>=0.10.0",
-    "kaitaistruct>=0.10.0",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Operating System :: OS Independent",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
-    "pre-commit>=3.0.0",
-]
+[tool.poetry.dependencies]
+python = "^3.8.1"
+click = "^8.0.0"
+rich = "^13.0.0"
+lxml = "^4.9.0"
+kaitaistruct = "^0.10.0"
+pathlib2 = { version = "^2.3.0", python = "<3.10" }
 
-[project.urls]
-Homepage = "https://github.com/universal-dj-usb/universal-dj-usb"
-Documentation = "https://universal-dj-usb.readthedocs.io"
-Repository = "https://github.com/universal-dj-usb/universal-dj-usb"
-Issues = "https://github.com/universal-dj-usb/universal-dj-usb/issues"
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+black = "^23.0.0"
+isort = "^5.0.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
 
-[project.scripts]
-universal-dj-usb = "universal_dj_usb.cli:main"
+[tool.poetry.scripts]
 udj = "universal_dj_usb.cli:main"
-udj-gui = "universal_dj_usb.gui:main"
+universal-dj-usb = "universal_dj_usb.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 88
 target-version = ['py38']
 include = '\.pyi?$'
-extend-exclude = '''
-(
-  /(
-      \.eggs
-    | \.git
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-  )/
-)
-'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
 
 [tool.mypy]
 python_version = "3.8"
@@ -99,17 +55,8 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "--cov=src/universal_dj_usb --cov-report=term-missing --cov-report=html"
+python_files = ["test_*.py"]
+addopts = "-v --cov=src/universal_dj_usb --cov-report=term-missing"

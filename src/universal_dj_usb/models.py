@@ -1,6 +1,6 @@
 """Data models for playlist and track information."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 from enum import Enum
@@ -65,11 +65,7 @@ class Track:
     date_added: Optional[str] = None
     rating: Optional[int] = None  # 0-5 stars
     comment: Optional[str] = None
-    cue_points: List[CuePoint] = None
-
-    def __post_init__(self):
-        if self.cue_points is None:
-            self.cue_points = []
+    cue_points: List[CuePoint] = field(default_factory=list)
 
     @property
     def relative_path(self) -> str:
@@ -87,14 +83,10 @@ class Playlist:
     """Represents a playlist with tracks."""
 
     name: str
-    tracks: List[Track]
+    tracks: List[Track] = field(default_factory=list)
     is_folder: bool = False
     parent_id: Optional[int] = None
     id: Optional[int] = None
-
-    def __post_init__(self):
-        if self.tracks is None:
-            self.tracks = []
 
     @property
     def track_count(self) -> int:
@@ -120,14 +112,8 @@ class Playlist:
 class PlaylistTree:
     """Represents the hierarchical structure of playlists."""
 
-    root_playlists: List[Playlist]
-    all_playlists: Dict[int, Playlist]
-
-    def __post_init__(self):
-        if self.root_playlists is None:
-            self.root_playlists = []
-        if self.all_playlists is None:
-            self.all_playlists = {}
+    root_playlists: List[Playlist] = field(default_factory=list)
+    all_playlists: Dict[int, Playlist] = field(default_factory=dict)
 
     def get_playlist_by_id(self, playlist_id: int) -> Optional[Playlist]:
         """Get a playlist by its ID."""
@@ -164,7 +150,7 @@ class ConversionConfig:
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "ConversionConfig":
         """Create configuration from dictionary."""
-        return cls(**config_dict)
+        return cls(**{k: v for k, v in config_dict.items() if hasattr(cls, k)})
 
 
 @dataclass
@@ -176,8 +162,4 @@ class ConversionResult:
     output_file: Optional[Path] = None
     track_count: int = 0
     error_message: Optional[str] = None
-    warnings: List[str] = None
-
-    def __post_init__(self):
-        if self.warnings is None:
-            self.warnings = []
+    warnings: List[str] = field(default_factory=list)

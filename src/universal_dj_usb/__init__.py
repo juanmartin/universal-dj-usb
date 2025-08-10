@@ -1,23 +1,14 @@
 """Universal DJ USB Playlist Converter.
 
-A powerful, cross-platform application that converts Rekordbox prepared
-USB playlists to Traktor's NML format.
+A tool for converting Rekordbox USB playlists to various formats including
+Traktor NML, M3U, and M3U8.
 """
 
-__version__ = "0.1.0"
-__author__ = "Universal DJ USB Team"
-__email__ = "info@universal-dj-usb.com"
-__license__ = "MIT"
+__version__ = "0.2.0"
+__author__ = "Juan Martin"
+__email__ = "your-email@example.com"
 
-from .converter import RekordboxToTraktorConverter
-from .models import Playlist, Track, CuePoint
-from .utils import detect_usb_drives, normalize_path
+from .models import Track, Playlist, PlaylistTree
+from .parser import RekordboxParser
 
-__all__ = [
-    "RekordboxToTraktorConverter",
-    "Playlist",
-    "Track",
-    "CuePoint",
-    "detect_usb_drives",
-    "normalize_path",
-]
+__all__ = ["Track", "Playlist", "PlaylistTree", "RekordboxParser"]
