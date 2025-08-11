@@ -29,55 +29,62 @@ class M3U8Generator(BaseGenerator):
             # Ensure output directory exists
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            lines = ["#EXTM3U"]
+            lines = []
             warnings = []
 
+            # Add header if using extended format
+            if self.config.m3u_extended:
+                lines.append("#EXTM3U")
+
             for track in playlist.tracks:
-                # Extended metadata
-                extinf_parts = []
+                # Add extended info if using extended format
+                if self.config.m3u_extended:
+                    duration = int(track.duration) if track.duration else -1
 
-                # Duration
-                duration = int(track.duration) if track.duration else -1
+                    # Build track info with additional metadata for M3U8
+                    track_info = f"{track.artist} - {track.title}"
 
-                # Build track info with additional metadata
-                track_info = f"{track.artist} - {track.title}"
+                    # Add extended metadata for M3U8
+                    extended_info = []
+                    if track.album:
+                        extended_info.append(f"Album: {track.album}")
+                    if track.year:
+                        extended_info.append(f"Year: {track.year}")
+                    if track.genre:
+                        extended_info.append(f"Genre: {track.genre}")
+                    if track.bpm:
+                        extended_info.append(f"BPM: {track.bpm:.1f}")
 
-                # Add extended info
-                extended_info = []
-                if track.album:
-                    extended_info.append(f"Album: {track.album}")
-                if track.year:
-                    extended_info.append(f"Year: {track.year}")
-                if track.genre:
-                    extended_info.append(f"Genre: {track.genre}")
-                if track.bpm:
-                    extended_info.append(f"BPM: {track.bpm:.1f}")
+                    if extended_info:
+                        track_info += f" ({', '.join(extended_info)})"
 
-                if extended_info:
-                    track_info += f" ({', '.join(extended_info)})"
+                    lines.append(f"#EXTINF:{duration},{track_info}")
 
-                lines.append(f"#EXTINF:{duration},{track_info}")
-
-                # Add file path (URL encode for M3U8 compatibility)
-                if self.config.relative_paths:
-                    track_path = self._normalize_path(track.file_path, output_path)
+                # Determine path type based on M3U-specific option
+                if self.config.m3u_absolute_paths:
+                    # Use absolute paths - construct full system path
+                    if usb_path and not track.file_path.is_absolute():
+                        # Remove leading slash from track path and join with USB path
+                        track_path_str = str(track.file_path)
+                        if track_path_str.startswith("/"):
+                            track_path_str = track_path_str[1:]
+                        full_path = usb_path / track_path_str
+                        track_path = str(full_path)
+                    else:
+                        track_path = str(track.file_path)
                 else:
-                    track_path = self._normalize_path(track.file_path)
+                    # Use relative paths - keep the original working logic
+                    track_path = self._normalize_path(track.file_path, output_path)
 
-                # URL encode the path for M3U8 compatibility
-                track_path = quote(track_path, safe="/:")
-
-                # Check if file exists (warning only)
-                if not track.file_path.exists():
-                    warnings.append(f"File not found: {track.file_path}")
+                # URL encode the path for M3U8 compatibility if needed
+                if self.config.m3u_extended:
+                    track_path = quote(track_path, safe="/:")
 
                 lines.append(track_path)
 
-            # Write the M3U8 file
-            content = "\\n".join(lines)
-            with open(
-                output_file, "w", encoding="utf-8"
-            ) as f:  # M3U8 should always be UTF-8
+            # Write the M3U8 file with UTF-8 encoding
+            content = "\n".join(lines)
+            with open(output_file, "w", encoding="utf-8") as f:
                 f.write(content)
 
             return ConversionResult(

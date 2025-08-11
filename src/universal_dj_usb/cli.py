@@ -146,6 +146,16 @@ def list_playlists(usb_path: Path) -> None:
     default=False,
     help="Append format suffix to filenames (e.g., -NML.nml for Traktor compatibility)",
 )
+@click.option(
+    "--m3u-extended/--m3u-simple",
+    default=True,
+    help="Use extended M3U format with metadata (default) or simple format (paths only)",
+)
+@click.option(
+    "--m3u-absolute-paths/--m3u-relative-paths",
+    default=False,
+    help="Use absolute paths in M3U files instead of relative paths",
+)
 @click.pass_context
 def convert(
     ctx: click.Context,
@@ -155,6 +165,8 @@ def convert(
     format: str,
     relative_paths: bool,
     use_format_suffix: bool,
+    m3u_extended: bool,
+    m3u_absolute_paths: bool,
 ) -> None:
     """Convert Rekordbox playlists to specified format(s)."""
     debug = ctx.obj.get("debug", False)
@@ -210,6 +222,8 @@ def convert(
         relative_paths=relative_paths,
         output_format=format.lower(),
         use_format_suffix=use_format_suffix,
+        m3u_extended=m3u_extended,
+        m3u_absolute_paths=m3u_absolute_paths,
     )
 
     # Create generators
@@ -283,6 +297,9 @@ def convert(
         console.print(f"[dim]• Format: {format}[/dim]")
         console.print(f"[dim]• Relative paths: {relative_paths}[/dim]")
         console.print(f"[dim]• Use format suffix: {use_format_suffix}[/dim]")
+        if format.lower() in ["m3u", "m3u8", "all"]:
+            console.print(f"[dim]• M3U extended format: {m3u_extended}[/dim]")
+            console.print(f"[dim]• M3U absolute paths: {m3u_absolute_paths}[/dim]")
         if any(r.warnings for r in results):
             console.print(
                 f"[dim]• Total warnings: {sum(len(r.warnings) for r in results)}[/dim]"

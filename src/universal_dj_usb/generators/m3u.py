@@ -1,10 +1,13 @@
 """M3U playlist generator."""
 
+import logging
 from pathlib import Path
 from typing import List
 
 from .base import BaseGenerator
 from ..models import Playlist, ConversionResult
+
+logger = logging.getLogger(__name__)
 
 
 class M3UGenerator(BaseGenerator):
@@ -29,31 +32,44 @@ class M3UGenerator(BaseGenerator):
             # Ensure output directory exists
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            lines = ["#EXTM3U"]
+            lines = []
             warnings = []
 
+            # Add header if using extended format
+            if self.config.m3u_extended:
+                lines.append("#EXTM3U")
+
             for track in playlist.tracks:
-                # Add track info line (optional in M3U but commonly used)
-                duration = int(track.duration) if track.duration else -1
-                track_info = f"{track.artist} - {track.title}"
-                lines.append(f"#EXTINF:{duration},{track_info}")
+                # Add extended info if using extended format
+                if self.config.m3u_extended:
+                    duration = int(track.duration) if track.duration else -1
+                    track_info = f"{track.artist} - {track.title}"
+                    lines.append(f"#EXTINF:{duration},{track_info}")
 
-                # Add file path
-                if self.config.relative_paths:
-                    # Use relative path from output location
-                    track_path = self._normalize_path(track.file_path, output_path)
+                # Determine path type based on M3U-specific option
+                if self.config.m3u_absolute_paths:
+                    # Use absolute paths - construct full system path
+                    track_path_str = str(track.file_path)
+
+                    if usb_path:
+                        # Always construct full path from USB base and track path
+                        if track_path_str.startswith("/"):
+                            track_path_str = track_path_str[1:]  # Remove leading slash
+                        full_path = usb_path / track_path_str
+                        track_path = str(full_path)
+                    else:
+                        track_path = track_path_str
                 else:
-                    track_path = self._normalize_path(track.file_path)
-
-                # Check if file exists (warning only)
-                if not track.file_path.exists():
-                    warnings.append(f"File not found: {track.file_path}")
+                    # Use relative paths - keep the original working logic
+                    track_path = self._normalize_path(track.file_path, output_path)
 
                 lines.append(track_path)
 
-            # Write the M3U file
-            content = "\\n".join(lines)
-            with open(output_file, "w", encoding=self.config.encoding) as f:
+            # Write the M3U file with appropriate encoding
+            content = "\n".join(lines)
+            encoding = "ascii" if self.file_extension.endswith(".m3u") else "utf-8"
+
+            with open(output_file, "w", encoding=encoding) as f:
                 f.write(content)
 
             return ConversionResult(
