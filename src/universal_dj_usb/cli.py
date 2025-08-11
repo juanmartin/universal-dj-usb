@@ -64,7 +64,7 @@ def detect(usb_path: Path) -> None:
         # Try to parse and show basic info
         parser = RekordboxParser(pdb_path)
         if parser.parse():
-            playlist_tree = parser.get_playlists()
+            playlist_tree = parser.get_playlists(usb_path)
             console.print(f"[green]✓ Successfully parsed database[/green]")
             console.print(f"Found {len(playlist_tree.all_playlists)} playlists")
         else:
@@ -89,7 +89,7 @@ def list_playlists(usb_path: Path) -> None:
         console.print("[red]✗ Failed to parse database[/red]")
         return
 
-    playlist_tree = parser.get_playlists()
+    playlist_tree = parser.get_playlists(usb_path)
 
     if not playlist_tree.all_playlists:
         console.print("[yellow]No playlists found[/yellow]")
@@ -190,7 +190,7 @@ def convert(
         console.print("[red]✗ Failed to parse database[/red]")
         return
 
-    playlist_tree = parser.get_playlists()
+    playlist_tree = parser.get_playlists(usb_path)
 
     if not playlist_tree.all_playlists:
         console.print("[yellow]No playlists found[/yellow]")
@@ -217,6 +217,12 @@ def convert(
         console.print("[yellow]No playlists to convert[/yellow]")
         return
 
+    # Enhance tracks with file metadata only for playlists being converted
+    enhanced_playlists = []
+    for playlist_obj in playlists_to_convert:
+        enhanced_playlist = parser.enhance_playlist_tracks(playlist_obj, usb_path)
+        enhanced_playlists.append(enhanced_playlist)
+
     # Create configuration
     config = ConversionConfig(
         relative_paths=relative_paths,
@@ -242,11 +248,11 @@ def convert(
 
     with Progress() as progress:
         task = progress.add_task(
-            "Converting playlists...", total=len(playlists_to_convert) * len(generators)
+            "Converting playlists...", total=len(enhanced_playlists) * len(generators)
         )
 
         results = []
-        for playlist_obj in playlists_to_convert:
+        for playlist_obj in enhanced_playlists:
             for generator in generators:
                 result = generator.generate(playlist_obj, output, usb_path)
                 results.append(result)
@@ -323,7 +329,7 @@ def info(usb_path: Path, playlist_name: str) -> None:
         console.print("[red]✗ Failed to parse database[/red]")
         return
 
-    playlist_tree = parser.get_playlists()
+    playlist_tree = parser.get_playlists(usb_path)
     playlist = playlist_tree.get_playlist_by_name(playlist_name)
 
     if not playlist:

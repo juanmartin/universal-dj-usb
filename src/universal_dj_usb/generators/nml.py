@@ -183,13 +183,19 @@ class NMLGenerator(BaseGenerator):
         if not absolute_file_path.exists():
             warnings.append(f"File not found: {absolute_file_path}")
 
-        # Create entry element
-        entry = ET.SubElement(
-            collection,
-            "ENTRY",
-            MODIFIED_DATE="2024/1/1",
-            MODIFIED_TIME="0",
-        )
+        # Create entry element with title and artist as attributes
+        entry_attribs = {
+            "MODIFIED_DATE": "2024/1/1",
+            "MODIFIED_TIME": "0",
+        }
+
+        # Add title and artist as attributes to ENTRY
+        if track.title:
+            entry_attribs["TITLE"] = track.title
+        if track.artist:
+            entry_attribs["ARTIST"] = track.artist
+
+        entry = ET.SubElement(collection, "ENTRY", **entry_attribs)
 
         # Location with volume information
         location = ET.SubElement(
@@ -240,10 +246,6 @@ class NMLGenerator(BaseGenerator):
         # Musical key
         if track.key:
             ET.SubElement(entry, "MUSICAL_KEY", VALUE=track.key.value)
-
-        # Title and Artist
-        ET.SubElement(entry, "TITLE", VALUE=track.title)
-        ET.SubElement(entry, "ARTIST", VALUE=track.artist)
 
         # Cue points
         if self.config.include_cue_points and track.cue_points:
