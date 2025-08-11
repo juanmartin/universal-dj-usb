@@ -303,12 +303,28 @@ class RekordboxParser:
                             tracks[track_row.id] = track
 
                 # Move to next page
-                current_page = (
-                    page_data.next_page if page_data.next_page.index > 0 else None
-                )
+                try:
+                    current_page = (
+                        page_data.next_page if page_data.next_page.index > 0 else None
+                    )
+                except Exception as page_error:
+                    # This often happens at the end of the table - not necessarily an error
+                    logger.debug(f"Reached end of tracks table: {page_error}")
+                    break
 
             except Exception as e:
-                logger.error(f"Error processing tracks page: {e}")
+                # Check if this is a common end-of-data condition
+                error_msg = str(e).lower()
+                if (
+                    "requested" in error_msg
+                    and "bytes" in error_msg
+                    and "but only" in error_msg
+                ):
+                    # This is likely a normal end-of-data condition
+                    logger.debug(f"Reached end of tracks data: {e}")
+                else:
+                    # This is an unexpected error
+                    logger.error(f"Error processing tracks page: {e}")
                 break
 
         logger.info(f"Found {len(tracks)} tracks")
