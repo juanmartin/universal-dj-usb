@@ -1,5 +1,7 @@
 # Python
 __pycache__/
+*/__pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -61,4 +63,3 @@ test_data/
 converted_playlists/
 output/
 backup_old/
-src/universal_dj_usb/__pycache__/
