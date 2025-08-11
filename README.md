@@ -132,9 +132,13 @@ USB Drive/
 ├── PIONEER/
 │   └── rekordbox/
 │       └── export.pdb          # Main database file
-└── Music/                      # Your music files
-    ├── track1.mp3
-    ├── track2.mp3
+└── Contents/                      # Your music files
+    ├── <Artist>
+    │   ├── <Album>
+    │   │   ├── track1.mp3
+    │   │   ├── track2.mp3
+    │   │   └── ...
+    │   └── ...
     └── ...
 ```
 

@@ -117,8 +117,10 @@ USB Drive/
 │   ├── rekordbox/
 │   │   └── export.pdb          # Main database file
 │   └── USBANLZ/                # Analysis files (cue points, etc.)
-└── Music/                      # Music files
+└── Contents/                      # Music files
 ```
+
+- In the `Contents` folder there is a subfolder for each artist, and within each artist folder, there are folders for each album, and within each album folder, there are the actual music files.
 
 ### Traktor NML Format
 
