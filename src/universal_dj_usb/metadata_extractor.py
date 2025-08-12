@@ -121,6 +121,22 @@ class AudioMetadataExtractor:
                     except ValueError:
                         pass
 
+                # Musical Key - crucial for DJs
+                if "TKEY" in tags:  # ID3v2 key
+                    metadata["key"] = str(tags["TKEY"][0])
+                elif "INITIALKEY" in tags:  # Vorbis comment / Traktor key
+                    metadata["key"] = str(tags["INITIALKEY"][0])
+
+                # Rating (for DJ software compatibility)
+                if "POPM:Windows Media Player 9 Series" in tags:  # WMP rating
+                    try:
+                        rating_data = tags["POPM:Windows Media Player 9 Series"]
+                        if hasattr(rating_data, "rating"):
+                            # Convert 0-255 scale to 0-5 stars
+                            metadata["rating"] = int(rating_data.rating / 51)
+                    except:
+                        pass
+
                 # Comment
                 if "COMM::eng" in tags:  # ID3v2 comment
                     metadata["comment"] = str(tags["COMM::eng"][0])
@@ -133,14 +149,17 @@ class AudioMetadataExtractor:
         except Exception as e:
             logger.debug(
                 f"Could not extract metadata from {file_path}: {e}"
-            )  # Reduced to debug level        return metadata
+            )  # Reduced to debug level
+
+        return metadata
 
     @staticmethod
     def extract_metadata_from_path(file_path: Path) -> Dict[str, Any]:
         """
         Extract metadata from file path structure.
 
-        Rekordbox USB structure: Contents/Artist/Album/Track.mp3
+        Rekordbox USB structure: <USB-mount>/Contents/<Artist>/<Album>/<tracks...>
+        This is the most reliable source for artist and album information.
 
         Args:
             file_path: Path to the audio file
@@ -153,7 +172,7 @@ class AudioMetadataExtractor:
         try:
             parts = file_path.parts
 
-            # Find "Contents" in the path to determine the structure
+            # Find "Contents" in the path to determine the Rekordbox structure
             contents_index = -1
             for i, part in enumerate(parts):
                 if part.lower() == "contents":
@@ -166,22 +185,128 @@ class AudioMetadataExtractor:
                 album = parts[contents_index + 2]
                 filename = parts[-1]
 
-                # Clean up artist and album names
+                # Use folder names as-is, only replacing underscores with spaces
                 metadata["artist"] = artist.replace("_", " ").strip()
                 metadata["album"] = album.replace("_", " ").strip()
 
-                # Extract title from filename (remove extension)
+                # Extract title from filename (remove extension and track numbers)
                 title = Path(filename).stem
-                # Remove common patterns like "Artist - Title"
-                if " - " in title:
-                    title_parts = title.split(" - ", 1)
-                    if len(title_parts) == 2:
-                        # Use the part after the dash as title
-                        metadata["title"] = title_parts[1].strip()
+                # Only remove numerical prefixes like "01 - " or "01. " from title
+                title_clean = re.sub(r"^\d+\s*[-.]?\s*", "", title)
+                if title_clean:
+                    metadata["title"] = title_clean.strip()
                 else:
                     metadata["title"] = title.strip()
 
-                logger.debug(f"Extracted from path {file_path}: {metadata}")
+                    # Fallback: try to extract artist from any path that has enough parts
+            elif len(parts) >= 3 and not metadata.get("artist"):
+                # Try different patterns for artist extraction
+                # Pattern 1: /some/path/Artist/Album/Track.mp3 (artist in second-to-last directory)
+                if len(parts) >= 3:
+                    potential_artist = parts[-3]  # Third from end
+                    # Be more selective about what looks like an artist directory
+                    if (
+                        potential_artist.lower()
+                        not in [
+                            "music",
+                            "audio",
+                            "songs",
+                            "tracks",
+                            "files",
+                            "path",
+                            "random",
+                            "tmp",
+                            "temp",
+                            "downloads",
+                            "desktop",
+                            "documents",
+                            "users",
+                            "home",
+                            "volumes",
+                        ]
+                        and len(potential_artist) > 2
+                        and not potential_artist.isdigit()
+                    ):
+                        metadata["artist"] = potential_artist.replace("_", " ").strip()
+
+                # Pattern 2: /some/path/Artist/Track.mp3 (artist in parent directory)
+                if not metadata.get("artist") and len(parts) >= 2:
+                    potential_artist = parts[-2]  # Second from end (parent directory)
+                    # Be more selective about what looks like an artist directory
+                    if (
+                        potential_artist.lower()
+                        not in [
+                            "music",
+                            "audio",
+                            "songs",
+                            "tracks",
+                            "files",
+                            "path",
+                            "random",
+                            "tmp",
+                            "temp",
+                            "downloads",
+                            "desktop",
+                            "documents",
+                            "users",
+                            "home",
+                            "volumes",
+                            "dirs",
+                            "nested",
+                        ]
+                        and len(potential_artist) > 2
+                        and not potential_artist.isdigit()
+                    ):
+                        metadata["artist"] = potential_artist.replace("_", " ").strip()
+
+            # Final fallback: extract from filename if still no artist found
+            if not metadata.get("artist"):
+                filename = Path(file_path).stem
+
+                # Pattern: "Artist - Title"
+                if " - " in filename:
+                    filename_parts = filename.split(" - ", 1)
+                    if len(filename_parts) == 2:
+                        potential_artist = filename_parts[0].strip()
+                        # Basic validation - artist name should be reasonable length
+                        if len(potential_artist) > 1 and len(potential_artist) < 100:
+                            metadata["artist"] = potential_artist
+                            if not metadata.get("title"):
+                                metadata["title"] = filename_parts[1].strip()
+
+            # Minimal cleaning only for folder-based extraction - just underscores to spaces
+            if metadata.get("artist"):
+                metadata["artist"] = metadata["artist"].replace("_", " ").strip()
+            if metadata.get("album"):
+                metadata["album"] = metadata["album"].replace("_", " ").strip()
+
+            # Clean up extracted metadata
+            if metadata.get("artist"):
+                # Remove numerical prefixes and common patterns
+                artist_clean = re.sub(r"^\d+\s*[-.]?\s*", "", metadata["artist"])
+                if artist_clean:
+                    metadata["artist"] = artist_clean
+
+                # Remove brackets and parentheses content
+                metadata["artist"] = re.sub(
+                    r"\[.*?\]|\(.*?\)", "", metadata["artist"]
+                ).strip()
+
+            if metadata.get("album"):
+                # Remove numerical prefixes and common patterns
+                album_clean = re.sub(r"^\d+\s*[-.]?\s*", "", metadata["album"])
+                if album_clean:
+                    metadata["album"] = album_clean
+
+                # Remove brackets and parentheses content
+                metadata["album"] = re.sub(
+                    r"\[.*?\]|\(.*?\)", "", metadata["album"]
+                ).strip()
+
+            if metadata:
+                logger.debug(
+                    f"Final extracted metadata from path {file_path}: {metadata}"
+                )
 
         except Exception as e:
             logger.debug(f"Error extracting metadata from path {file_path}: {e}")
@@ -210,7 +335,7 @@ class AudioMetadataExtractor:
         """
         merged = {}
 
-        # List of fields to merge
+        # List of fields to merge - expanded for rich DJ metadata
         fields = [
             "title",
             "artist",
@@ -218,34 +343,146 @@ class AudioMetadataExtractor:
             "genre",
             "year",
             "bpm",
+            "key",  # Musical key - crucial for DJs
             "duration",
             "bitrate",
             "sample_rate",
             "comment",
+            "rating",  # Star rating
+            "date_added",  # When added to collection
         ]
 
+        # Helper function to check if a value is valid (not None, not empty, not "Unknown" variants)
+        def is_valid_value(value):
+            if value is None:
+                return False
+            if isinstance(value, str):
+                cleaned = value.strip().lower()
+                if (
+                    not cleaned
+                    or cleaned == "unknown"
+                    or cleaned == "unknownalbum"
+                    or cleaned == "unknownartist"
+                    or cleaned.startswith("unknown[id:")
+                    or cleaned.startswith("unknownalbum")
+                    or cleaned.startswith("unknownartist")
+                ):
+                    return False
+            return True
+
         for field in fields:
-            # Priority: PDB -> File -> Path
-            if (
-                pdb_metadata
-                and isinstance(pdb_metadata, dict)
-                and field in pdb_metadata
-                and pdb_metadata[field] is not None
-            ):
-                merged[field] = pdb_metadata[field]
-            elif (
-                file_metadata
-                and isinstance(file_metadata, dict)
-                and field in file_metadata
-                and file_metadata[field] is not None
-            ):
-                merged[field] = file_metadata[field]
-            elif (
-                path_metadata
-                and isinstance(path_metadata, dict)
-                and field in path_metadata
-                and path_metadata[field] is not None
-            ):
-                merged[field] = path_metadata[field]
+            # Special handling for artist and album - prioritize path over file for Rekordbox reliability
+            if field in ["artist", "album"]:
+                # Priority for artist/album: PDB (if valid) -> Path -> File
+                if (
+                    pdb_metadata
+                    and field in pdb_metadata
+                    and is_valid_value(pdb_metadata[field])
+                ):
+                    merged[field] = pdb_metadata[field]
+                elif (
+                    path_metadata
+                    and field in path_metadata
+                    and is_valid_value(path_metadata[field])
+                ):
+                    merged[field] = path_metadata[field]
+                elif (
+                    file_metadata
+                    and field in file_metadata
+                    and is_valid_value(file_metadata[field])
+                ):
+                    merged[field] = file_metadata[field]
+
+            # Special handling for BPM and key - these are critical for DJs, prioritize PDB then file
+            elif field in ["bpm", "key"]:
+                # Priority for BPM/key: PDB -> File -> Path (PDB and ID3 are more accurate for these)
+                if (
+                    pdb_metadata
+                    and field in pdb_metadata
+                    and is_valid_value(pdb_metadata[field])
+                ):
+                    merged[field] = pdb_metadata[field]
+                elif (
+                    file_metadata
+                    and field in file_metadata
+                    and is_valid_value(file_metadata[field])
+                ):
+                    merged[field] = file_metadata[field]
+                elif (
+                    path_metadata
+                    and field in path_metadata
+                    and is_valid_value(path_metadata[field])
+                ):
+                    merged[field] = path_metadata[field]
+
+            # Standard priority for other fields: PDB -> File -> Path
+            else:
+                if (
+                    pdb_metadata
+                    and field in pdb_metadata
+                    and is_valid_value(pdb_metadata[field])
+                ):
+                    merged[field] = pdb_metadata[field]
+                elif (
+                    file_metadata
+                    and field in file_metadata
+                    and is_valid_value(file_metadata[field])
+                ):
+                    merged[field] = file_metadata[field]
+                elif (
+                    path_metadata
+                    and field in path_metadata
+                    and is_valid_value(path_metadata[field])
+                ):
+                    merged[field] = path_metadata[field]
+
+        # Apply final fallback logic for artist extraction
+        # If we still don't have an artist, try to extract from title using common patterns
+        if (
+            "artist" not in merged or not is_valid_value(merged.get("artist"))
+        ) and "title" in merged:
+            artist_from_title = AudioMetadataExtractor._extract_artist_from_title(
+                merged["title"]
+            )
+            if artist_from_title and is_valid_value(artist_from_title):
+                merged["artist"] = artist_from_title
+                logger.debug(f"Extracted artist from title: {artist_from_title}")
 
         return merged
+
+    @staticmethod
+    def _extract_artist_from_title(title: str) -> Optional[str]:
+        """
+        Extract artist name from track title using common patterns.
+
+        Common DJ track title patterns:
+        - "Artist - Track Name"
+        - "Artist - Track Name (Remix)"
+        - "Artist ft. Other - Track Name"
+
+        Args:
+            title: Track title string
+
+        Returns:
+            Extracted artist name or None if no pattern matches
+        """
+        if not title or not isinstance(title, str):
+            return None
+
+        title = title.strip()
+
+        # Pattern: "Artist - Track Name" (most common)
+        if " - " in title:
+            potential_artist = title.split(" - ")[0].strip()
+
+            # Basic validation - artist shouldn't be too long or contain certain patterns
+            if (
+                len(potential_artist) > 0
+                and len(potential_artist) <= 50  # Reasonable artist name length
+                and not potential_artist.lower().startswith("track")
+                and not potential_artist.lower().startswith("unknown")
+                and not potential_artist.isdigit()  # Not just numbers
+            ):
+                return potential_artist
+
+        return None

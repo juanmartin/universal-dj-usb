@@ -633,24 +633,52 @@ class RekordboxParser:
         for track in tracks:
             try:
                 # Prepare PDB metadata from existing track
+                # More aggressive filtering of "Unknown" values
                 pdb_metadata = {
-                    "title": track.title if track.title != "Unknown" else None,
-                    "artist": track.artist if track.artist != "Unknown" else None,
-                    "album": (
-                        track.album
-                        if track.album and not track.album.startswith("Unknown[ID:")
+                    "title": (
+                        track.title
+                        if track.title
+                        and track.title != "Unknown"
+                        and not track.title.startswith("Unknown[ID:")
                         else None
                     ),
-                    "genre": track.genre,
+                    "artist": (
+                        track.artist
+                        if track.artist
+                        and track.artist != "Unknown"
+                        and not track.artist.startswith("Unknown[ID:")
+                        else None
+                    ),
+                    "album": (
+                        track.album
+                        if track.album
+                        and track.album != "Unknown"
+                        and not track.album.startswith("Unknown[ID:")
+                        else None
+                    ),
+                    "genre": (
+                        track.genre
+                        if track.genre and track.genre != "Unknown"
+                        else None
+                    ),
                     "year": track.year,
                     "bpm": track.bpm,
+                    "key": (
+                        track.key.value if track.key else None
+                    ),  # Convert enum to string
                     "duration": track.duration,
                     "bitrate": track.bitrate,
                     "sample_rate": track.sample_rate,
-                    "comment": track.comment,
+                    "rating": track.rating,
+                    "date_added": track.date_added,
+                    "comment": (
+                        track.comment
+                        if track.comment and track.comment != "Unknown"
+                        else None
+                    ),
                 }
 
-                # Extract metadata from file path
+                # Extract metadata from file path (prioritize folder structure)
                 path_metadata = AudioMetadataExtractor.extract_metadata_from_path(
                     track.file_path
                 )
@@ -677,7 +705,36 @@ class RekordboxParser:
                     pdb_metadata, file_metadata, path_metadata
                 )
 
+                # Log artist extraction success/failure for debugging
+                final_artist = merged_metadata.get("artist", "Unknown")
+                if final_artist == "Unknown":
+                    logger.debug(
+                        f"Artist extraction failed for {track.file_path}. "
+                        f"PDB: {pdb_metadata.get('artist')}, "
+                        f"Path: {path_metadata.get('artist')}, "
+                        f"File: {file_metadata.get('artist')}"
+                    )
+                elif track.artist == "Unknown" and final_artist != "Unknown":
+                    logger.debug(
+                        f"Artist enhanced from {track.artist} to {final_artist} for {track.file_path}"
+                    )
+
                 # Create enhanced track
+                from .models import KeySignature
+
+                # Handle key conversion - if it's a string, try to match to enum
+                key_value = merged_metadata.get("key")
+                track_key = None
+                if key_value:
+                    if isinstance(key_value, KeySignature):
+                        track_key = key_value
+                    elif isinstance(key_value, str):
+                        # Try to find matching enum value
+                        for key_enum in KeySignature:
+                            if key_enum.value == key_value:
+                                track_key = key_enum
+                                break
+
                 enhanced_track = Track(
                     title=merged_metadata.get("title", "Unknown"),
                     artist=merged_metadata.get("artist", "Unknown"),
@@ -686,11 +743,15 @@ class RekordboxParser:
                     genre=merged_metadata.get("genre"),
                     year=merged_metadata.get("year"),
                     bpm=merged_metadata.get("bpm"),
+                    key=track_key,
                     duration=merged_metadata.get("duration"),
                     bitrate=merged_metadata.get("bitrate"),
                     sample_rate=merged_metadata.get("sample_rate"),
                     file_size=track.file_size,
-                    rating=track.rating,
+                    rating=merged_metadata.get(
+                        "rating", track.rating
+                    ),  # Prefer merged rating
+                    date_added=merged_metadata.get("date_added", track.date_added),
                     comment=merged_metadata.get("comment"),
                     cue_points=track.cue_points,
                 )
@@ -760,13 +821,17 @@ class RekordboxParser:
         if not minimal_tracks:
             return []
 
-        # Create mapping from file paths to minimal tracks
+        # Create mapping from file paths to minimal tracks with original order
         track_by_path = {}
-        for track in minimal_tracks:
+        track_order = {}  # Maps file path to original index
+        for i, track in enumerate(minimal_tracks):
             if track.file_path:
-                track_by_path[str(track.file_path)] = track
+                path_str = str(track.file_path)
+                track_by_path[path_str] = track
+                track_order[path_str] = i
 
-        enhanced_tracks = []
+        # Initialize enhanced tracks list with None placeholders to preserve order
+        enhanced_tracks = [None] * len(minimal_tracks)
 
         # Extract lookup tables (only if we need to enhance tracks)
         lookup_tables = self._extract_lookup_tables()
@@ -897,7 +962,9 @@ class RekordboxParser:
                                     ),
                                 )
 
-                                enhanced_tracks.append(enhanced_track)
+                                # Place track at correct index to preserve order
+                                original_index = track_order[file_path_str]
+                                enhanced_tracks[original_index] = enhanced_track
                                 found_tracks += 1
 
                 # Move to next page
@@ -925,13 +992,13 @@ class RekordboxParser:
                     )
                 break
 
-        logger.debug(f"Enhanced {len(enhanced_tracks)} tracks with full PDB metadata")
+        logger.debug(
+            f"Enhanced {len([t for t in enhanced_tracks if t is not None])} tracks with full PDB metadata"
+        )
 
-        # If we didn't find all tracks, include the ones we did find plus any minimal ones we missed
-        if len(enhanced_tracks) < len(minimal_tracks):
-            enhanced_paths = {str(track.file_path) for track in enhanced_tracks}
-            for minimal_track in minimal_tracks:
-                if str(minimal_track.file_path) not in enhanced_paths:
-                    enhanced_tracks.append(minimal_track)
+        # Fill any None slots with original minimal tracks
+        for i, enhanced_track in enumerate(enhanced_tracks):
+            if enhanced_track is None:
+                enhanced_tracks[i] = minimal_tracks[i]
 
         return enhanced_tracks

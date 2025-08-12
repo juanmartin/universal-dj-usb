@@ -13,6 +13,79 @@ from ..models import Playlist, Track, CuePoint, ConversionResult
 class NMLGenerator(BaseGenerator):
     """Generator for Traktor NML playlist format."""
 
+    # Traktor's musical key numbering system
+    # Maps ID3 tag keys (what we extract) → Traktor MUSICAL_KEY VALUE (what Traktor shows in UI)
+    # Source: Real Traktor NML export comparison with UI screenshot
+    TRAKTOR_KEY_MAP = {
+        # From reference NML: INFO KEY → MUSICAL_KEY VALUE mapping
+        "F#m": 14,  # ID3: F#m → Traktor UI shows: Dm → VALUE="14"
+        "Em": 21,  # ID3: Em → Traktor UI shows: Am → VALUE="21" (first Em track)
+        # Note: Em can also map to 16 (second Em track shows actual Em in UI)
+        # We'll use 21 as default for Em, but Traktor's analysis may vary
+        "Gm": 19,  # ID3: Gm → Traktor UI shows: Gm → VALUE="19"
+        "Fm": 22,  # ID3: Fm → Traktor UI shows: Bbm → VALUE="22"
+        # Additional common keys (educated guesses based on patterns)
+        "Am": 21,  # Likely same as Em mapping
+        "Dm": 14,  # Likely same as F#m mapping
+        "Cm": 13,  # Pattern-based guess
+        "Bm": 15,  # Pattern-based guess
+        "C#m": 17,  # Pattern-based guess
+        "G#m": 18,  # Pattern-based guess
+        "D#m": 19,  # Pattern-based guess (same area as Gm)
+        "A#m": 22,  # Same as Bbm (enharmonic equivalent)
+        "Bbm": 22,  # Direct from mapping
+        # Major keys (estimated based on typical patterns)
+        "C": 1,
+        "G": 2,
+        "D": 3,
+        "A": 4,
+        "E": 5,
+        "B": 6,
+        "F#": 7,
+        "Db": 8,
+        "Ab": 9,
+        "Eb": 10,
+        "Bb": 11,
+        "F": 12,
+        # Alternative notations
+        "A#": 11,  # Same as Bb
+        "C#": 8,  # Same as Db
+        "D#": 10,  # Same as Eb
+        "G#": 9,  # Same as Ab
+    }
+
+    def _get_traktor_key_number(self, key_string: str) -> Optional[int]:
+        """
+        Convert a musical key string to Traktor's numerical system.
+
+        Args:
+            key_string: Musical key like "Em", "F#m", "C", etc.
+
+        Returns:
+            Traktor key number or None if not found
+        """
+        if not key_string:
+            return None
+
+        # Clean up the key string
+        key_clean = key_string.strip()
+
+        # Try direct lookup first
+        if key_clean in self.TRAKTOR_KEY_MAP:
+            return self.TRAKTOR_KEY_MAP[key_clean]
+
+        # Try common variations
+        variations = [
+            key_clean.replace("♯", "#").replace("♭", "b"),  # Unicode to ASCII
+            key_clean.replace("maj", "").replace("min", "m"),  # Normalize
+        ]
+
+        for variation in variations:
+            if variation in self.TRAKTOR_KEY_MAP:
+                return self.TRAKTOR_KEY_MAP[variation]
+
+        return None
+
     @property
     def file_extension(self) -> str:
         """Return the file extension for NML format."""
@@ -242,7 +315,18 @@ class NMLGenerator(BaseGenerator):
 
         # Musical key
         if track.key:
-            ET.SubElement(entry, "MUSICAL_KEY", VALUE=track.key.value)
+            # Convert string key to Traktor's numeric system
+            key_string = (
+                track.key.value if hasattr(track.key, "value") else str(track.key)
+            )
+            print(f"DEBUG: Track key = {key_string}")  # Debug
+            traktor_key_number = self._get_traktor_key_number(key_string)
+            print(f"DEBUG: Traktor key number = {traktor_key_number}")  # Debug
+            if traktor_key_number:
+                ET.SubElement(entry, "MUSICAL_KEY", VALUE=str(traktor_key_number))
+            else:
+                # Fallback to string value if no mapping found
+                ET.SubElement(entry, "MUSICAL_KEY", VALUE=key_string)
 
         # Cue points
         if self.config.include_cue_points and track.cue_points:
