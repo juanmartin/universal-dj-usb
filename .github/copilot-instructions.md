@@ -24,15 +24,17 @@ This is a clean, modern Python application that converts Rekordbox USB playlists
 
 ## Key Technologies
 
-- **Python 3.8.1+**: Main programming language (updated constraint for flake8 compatibility)
+- **Python 3.9+**: Main programming language (updated constraint for PySide6 compatibility)
 - **Poetry**: Dependency management and build system (single config file approach)
+- **PySide6**: Modern Qt6-based GUI framework for cross-platform desktop application
 - **Kaitai Struct**: Direct parsing of Rekordbox PDB files (removed rekordcrate dependency)
 - **Click**: CLI framework with rich integration
 - **Rich**: Beautiful terminal output with progress bars, tables, and colors
 - **lxml**: XML processing for NML generation
 - **pathlib**: Cross-platform path handling
+- **psutil**: System and process utilities for USB drive detection
 
-**Removed dependencies:** Tkinter (GUI), rekordcrate (replaced with direct Kaitai), toml, pydantic
+**Removed dependencies:** Tkinter (GUI), rekordcrate (replaced with direct Kaitai), toml, pydantic, pathlib2 (now built-in)
 
 ## Development Guidelines
 
@@ -275,3 +277,39 @@ Options:
   --help  Show this message and exit.
 
 ```
+
+## GUI Application
+
+A modern PySide6-based GUI is also available:
+
+```bash
+poetry run udj-gui
+```
+
+### GUI Features
+
+- **Auto USB Detection**: Automatically detects USB drives with Rekordbox databases
+- **Real-time Playlist Loading**: Loads playlists immediately when USB drive is detected
+- **Interactive Playlist Selection**: Tree view with checkboxes for selecting playlists
+- **Format Options**: Support for NML, M3U, M3U8, and All formats with format-specific settings
+- **Progress Tracking**: Real-time conversion progress with detailed logging
+- **Cross-platform**: Runs on Windows, macOS, and Linux
+- **Modern UI**: Clean, responsive interface built with Qt6
+
+### GUI Options
+
+**Output Settings:**
+
+- Browse for output directory
+- Format suffix option (adds format to filename for clarity)
+
+**Format-Specific Options:**
+
+- **M3U/M3U8**: Extended format with metadata, relative/absolute paths
+- **NML**: Include cue points and loop points
+
+**Logging:**
+
+- Built-in log viewer with real-time output
+- Verbose logging option
+- Clear logs functionality
