@@ -100,17 +100,31 @@ class ConversionWorker(QThread):
         config: ConversionConfig,
         output_dir: Path,
         usb_path: Path,
+        parser: RekordboxParser = None,
     ):
         super().__init__()
         self.playlists = playlists
         self.config = config
         self.output_dir = output_dir
         self.usb_path = usb_path
+        self.parser = parser
 
     def run(self):
         """Convert the selected playlists."""
         results = []
         total_playlists = len(self.playlists)
+
+        # Enhance playlists with file metadata if parser is available
+        enhanced_playlists = []
+        if self.parser:
+            self.conversion_progress.emit("Enhancing track metadata...", 5)
+            for playlist in self.playlists:
+                enhanced_playlist = self.parser.enhance_playlist_tracks(
+                    playlist, self.usb_path
+                )
+                enhanced_playlists.append(enhanced_playlist)
+        else:
+            enhanced_playlists = self.playlists
 
         # Create generators based on format
         generators = []
@@ -121,7 +135,7 @@ class ConversionWorker(QThread):
         if self.config.output_format in ["m3u8", "all"]:
             generators.append(M3U8Generator(self.config))
 
-        for i, playlist in enumerate(self.playlists):
+        for i, playlist in enumerate(enhanced_playlists):
             self.conversion_progress.emit(
                 f"Converting '{playlist.name}'...", int((i / total_playlists) * 100)
             )
@@ -170,6 +184,7 @@ class MainWindow(QMainWindow):
         self.playlist_tree: Optional[PlaylistTree] = None
         self.selected_playlists: Dict[str, Playlist] = {}
         self.available_drives: List[USBDriveInfo] = []
+        self.current_parser: Optional[RekordboxParser] = None
 
         # Workers - only conversion worker, USB and parsing are now synchronous
         self.conversion_worker = None
@@ -701,6 +716,9 @@ class MainWindow(QMainWindow):
             if not parser.parse():
                 raise RuntimeError("Failed to parse the Rekordbox database")
 
+            # Store parser for later use in enhancement
+            self.current_parser = parser
+
             self._log_message("Extracting playlists...")
             playlist_tree = parser.get_playlists(self.current_usb_path)
 
@@ -846,7 +864,7 @@ class MainWindow(QMainWindow):
 
         # Start conversion worker
         self.conversion_worker = ConversionWorker(
-            playlists, config, output_dir, self.current_usb_path
+            playlists, config, output_dir, self.current_usb_path, self.current_parser
         )
         self.conversion_worker.conversion_progress.connect(self._on_conversion_progress)
         self.conversion_worker.conversion_complete.connect(self._on_conversion_complete)
