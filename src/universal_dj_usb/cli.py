@@ -254,7 +254,22 @@ def convert(
         results = []
         for playlist_obj in enhanced_playlists:
             for generator in generators:
-                result = generator.generate(playlist_obj, output, usb_path)
+                # Construct the filename like the GUI does
+                filename = generator._sanitize_filename(playlist_obj.name)
+
+                # Add format suffix if requested (before the extension)
+                if config.use_format_suffix:
+                    # Get the format name without the dot (e.g., "nml", "m3u", "m3u8")
+                    format_name = generator.file_extension.lstrip(".")
+                    filename = f"{filename}_{format_name}"
+
+                # Add the file extension
+                filename = f"{filename}{generator.file_extension}"
+
+                # Create the full output path
+                output_path = output / filename
+
+                result = generator.generate(playlist_obj, output_path, usb_path)
                 results.append(result)
 
                 if result.success:

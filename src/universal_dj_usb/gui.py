@@ -130,9 +130,15 @@ class ConversionWorker(QThread):
                 try:
                     # Generate output filename
                     filename = generator._sanitize_filename(playlist.name)
+
+                    # Add format suffix if requested (before the extension)
                     if self.config.use_format_suffix:
-                        filename += f"_{generator.file_extension[1:]}"  # Remove the dot
-                    filename += generator.file_extension
+                        # Get the format name without the dot (e.g., "nml", "m3u", "m3u8")
+                        format_name = generator.file_extension.lstrip(".")
+                        filename = f"{filename}_{format_name}"
+
+                    # Add the file extension
+                    filename = f"{filename}{generator.file_extension}"
 
                     output_path = self.output_dir / filename
                     result = generator.generate(playlist, output_path, self.usb_path)
@@ -354,15 +360,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.m3u_group)
 
         # NML Options (shown conditionally)
-        self.nml_group = QGroupBox("NML (Traktor) Options")
-        nml_layout = QVBoxLayout(self.nml_group)
+        # self.nml_group = QGroupBox("NML (Traktor) Options")
+        # nml_layout = QVBoxLayout(self.nml_group)
 
         # Add placeholder text since cue points and loops aren't implemented yet
-        nml_info = QLabel("Basic NML export (cue points and loops coming soon)")
-        nml_info.setStyleSheet("color: #666; font-style: italic;")
-        nml_layout.addWidget(nml_info)
+        # nml_info = QLabel("Basic NML export (cue points and loops coming soon)")
+        # nml_info.setStyleSheet("color: #666; font-style: italic;")
+        # nml_layout.addWidget(nml_info)
 
-        layout.addWidget(self.nml_group)
+        # layout.addWidget(self.nml_group)
 
         # Conversion Button
         self.convert_button = QPushButton("Convert Selected Playlists")
@@ -553,7 +559,7 @@ class MainWindow(QMainWindow):
                     drives.append(
                         USBDriveInfo(
                             path=path,
-                            label=partition.device,
+                            label=partition.mountpoint,
                             size=usage.total,
                             free_space=usage.free,
                             has_rekordbox=has_rekordbox,
@@ -793,7 +799,7 @@ class MainWindow(QMainWindow):
         show_nml = "NML" in format_text or "All" in format_text
 
         self.m3u_group.setVisible(show_m3u)
-        self.nml_group.setVisible(show_nml)
+        # self.nml_group.setVisible(show_nml) # comentado porque aun no hay opciones
 
     def _browse_output_directory(self):
         """Browse for output directory."""

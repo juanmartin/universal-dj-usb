@@ -16,18 +16,15 @@ class NMLGenerator(BaseGenerator):
     @property
     def file_extension(self) -> str:
         """Return the file extension for NML format."""
-        if self.config.use_format_suffix:
-            return "-NML.nml"
-        else:
-            return ".nml"
+        return ".nml"
 
     def generate(
         self, playlist: Playlist, output_path: Path, usb_path: Path = None
     ) -> ConversionResult:
         """Generate a Traktor NML playlist file."""
         try:
-            filename = f"{self._sanitize_filename(playlist.name)}{self.file_extension}"
-            output_file = output_path / filename
+            # Use the output_path directly as provided by the caller
+            output_file = output_path
 
             # Ensure output directory exists
             output_file.parent.mkdir(parents=True, exist_ok=True)
