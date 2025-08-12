@@ -119,7 +119,14 @@ USB Drive/
 │   ├── rekordbox/
 │   │   └── export.pdb          # Main database file
 │   └── USBANLZ/                # Analysis files (cue points, etc.)
-└── Contents/                      # Music files
+└── Contents/                      # Your music files
+    ├── <Artist>
+    │   ├── <Album>
+    │   │   ├── track1.mp3
+    │   │   ├── track2.mp3
+    │   │   └── ...
+    │   └── ...
+    └── ...
 ```
 
 - In the `Contents` folder there is a subfolder for each artist, and within each artist folder, there are folders for each album, and within each album folder, there are the actual music files.
@@ -313,3 +320,10 @@ poetry run udj-gui
 - Built-in log viewer with real-time output
 - Verbose logging option
 - Clear logs functionality
+
+# Copilot specifics
+
+The `run_in_terminal` tool sometimes fails to capture the command output. If
+that happens, use the `get_terminal_last_command` tool to retrieve the last
+command output from the terminal. If that fails, ask the user to copy-paste
+the output from the terminal.
