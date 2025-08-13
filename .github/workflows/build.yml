@@ -1,0 +1,125 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            artifact-name: universal-dj-usb-macos
+            package-command: |
+              mkdir -p release
+              cp dist/udj release/
+              cp -r "dist/Universal DJ USB.app" "release/" 2>/dev/null || echo "No app bundle found"
+              cd release
+              tar -czf ../universal-dj-usb-macos.tar.gz *
+            artifact-path: universal-dj-usb-macos.tar.gz
+            test-command: ./dist/udj --help
+          - os: windows-latest
+            artifact-name: universal-dj-usb-windows
+            package-command: |
+              mkdir release
+              copy "dist\Universal DJ USB.exe" "release\" 2>nul || echo "No GUI exe found"
+              copy "dist\udj.exe" "release\"
+              powershell Compress-Archive -Path release\* -DestinationPath universal-dj-usb-windows.zip
+            artifact-path: universal-dj-usb-windows.zip
+            test-command: .\dist\udj.exe --help
+          - os: ubuntu-latest
+            artifact-name: universal-dj-usb-linux
+            package-command: |
+              mkdir release
+              cp dist/udj release/
+              cp dist/"Universal DJ USB" release/ 2>/dev/null || echo "No GUI executable found"
+              cd release
+              tar -czf ../universal-dj-usb-linux.tar.gz *
+            artifact-path: universal-dj-usb-linux.tar.gz
+            test-command: ./dist/udj --help
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.6.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root --with dev
+
+      - name: Install project
+        run: poetry install --no-interaction
+
+      - name: Make build script executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x build.sh
+
+      - name: Build executables
+        shell: bash
+        run: ./build.sh
+
+      - name: Test CLI executable
+        shell: bash
+        run: ${{ matrix.test-command }}
+
+      - name: Package artifacts
+        shell: bash
+        run: ${{ matrix.package-command }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            universal-dj-usb-macos/universal-dj-usb-macos.tar.gz
+            universal-dj-usb-windows/universal-dj-usb-windows.zip
+            universal-dj-usb-linux/universal-dj-usb-linux.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
