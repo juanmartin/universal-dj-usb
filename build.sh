@@ -101,7 +101,7 @@ if [[ "$PLATFORM" == "darwin" ]]; then
         --windowed \
         --onedir \
         --name "Universal DJ USB" \
-        --osx-bundle-identifier com.universaldj.usb.converter \
+        --osx-bundle-identifier art.juanm.udj \
         udj_gui.py
 else
     # Windows/Linux: Build standalone executable
