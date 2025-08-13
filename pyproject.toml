@@ -2,7 +2,7 @@
 name = "universal-dj-usb"
 version = "0.2.0"
 description = "Convert Rekordbox USB playlists to various formats (NML, M3U, M3U8)"
-authors = ["Juan Martin <your-email@example.com>"]
+authors = ["Juan Martin <juanmartinsesali@gmail.com>"]
 readme = "README.md"
 license = "MIT"
 homepage = "https://github.com/juanmartin/universal-dj-usb"

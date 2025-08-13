@@ -6,7 +6,7 @@ Traktor NML, M3U, and M3U8.
 
 __version__ = "0.2.0"
 __author__ = "Juan Martin"
-__email__ = "your-email@example.com"
+__email__ = "juanmartinsesali@gmail.com"
 
 from .models import Track, Playlist, PlaylistTree
 from .parser import RekordboxParser
