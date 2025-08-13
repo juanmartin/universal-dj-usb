@@ -35,6 +35,8 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QGridLayout,
     QRadioButton,
+    QHeaderView,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
 from PySide6.QtGui import QIcon, QFont, QPixmap, QPalette, QAction
@@ -230,7 +232,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(right_panel)
 
         # Set splitter proportions
-        splitter.setSizes([400, 600])
+        splitter.setSizes([500, 500])
 
     def _create_left_panel(self) -> QWidget:
         """Create the left panel with USB detection and playlist list."""
@@ -242,13 +244,17 @@ class MainWindow(QMainWindow):
         usb_layout = QVBoxLayout(usb_group)
 
         self.usb_label = QLabel("Click 'Refresh USB Drives' to scan for drives")
+        # Use extra spacing between lines for multi-line text
         self.usb_label.setStyleSheet("color: #666; font-style: italic;")
+        self.usb_label.setMinimumHeight(40)
         usb_layout.addWidget(self.usb_label)
 
         # USB drive picker
         drive_picker_layout = QHBoxLayout()
         drive_picker_layout.addWidget(QLabel("Select Drive:"))
         self.usb_drive_combo = QComboBox()
+        # Make the combo box expand to fill available space, but not push out the label
+        self.usb_drive_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.usb_drive_combo.currentTextChanged.connect(self._on_usb_drive_selected)
         self.usb_drive_combo.setEnabled(False)
         drive_picker_layout.addWidget(self.usb_drive_combo)
@@ -266,10 +272,26 @@ class MainWindow(QMainWindow):
 
         # Playlist tree
         self.playlist_tree_widget = QTreeWidget()
-        self.playlist_tree_widget.setHeaderLabels(["Playlist", "Tracks"])
+        self.playlist_tree_widget.setHeaderLabels(["Playlist", "Tracks", "Order"])
+        self.playlist_tree_widget.setSortingEnabled(True)
         self.playlist_tree_widget.itemChanged.connect(
             self._on_playlist_selection_changed
         )
+
+        # Configure column widths - Playlist should be wider than Tracks
+        header = self.playlist_tree_widget.header()
+        header.setStretchLastSection(False)  # Don't auto-stretch the last column
+        header.resizeSection(0, 250)  # Playlist column - wider for longer names
+        header.resizeSection(1, 60)  # Tracks column - narrower, just for numbers
+        header.resizeSection(2, 60)  # Order column - narrower, just for numbers
+
+        # Set resize modes
+        header.setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )  # Playlist - user can resize
+        header.setSectionResizeMode(1, QHeaderView.Fixed)  # Tracks - fixed width
+        header.setSectionResizeMode(2, QHeaderView.Fixed)  # Order - fixed width
+
         playlist_layout.addWidget(self.playlist_tree_widget)
 
         # Select all/none buttons
@@ -318,14 +340,26 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Output Settings")
         output_layout = QGridLayout(output_group)
 
+        # First row: Label and Browse button
         output_layout.addWidget(QLabel("Output Directory:"), 0, 0)
-        self.output_dir_label = QLabel("No directory selected")
-        self.output_dir_label.setStyleSheet("color: #666; font-style: italic;")
-        output_layout.addWidget(self.output_dir_label, 0, 1)
-
         self.browse_button = QPushButton("Browse...")
         self.browse_button.clicked.connect(self._browse_output_directory)
-        output_layout.addWidget(self.browse_button, 0, 2)
+        output_layout.addWidget(self.browse_button, 0, 1)
+
+        # Second row: Full-width path display
+        self.output_dir_label = QLabel("No directory selected")
+        self.output_dir_label.setStyleSheet("color: #666; font-style: italic;")
+        self.output_dir_label.setWordWrap(True)  # Enable word wrapping for long paths
+        self.output_dir_label.setMinimumHeight(
+            40
+        )  # Fixed height to prevent layout shifting
+        self.output_dir_label.setMaximumHeight(
+            80
+        )  # Maximum height to contain very long paths
+        self.output_dir_label.setAlignment(
+            Qt.AlignTop | Qt.AlignLeft
+        )  # Align text to top-left
+        output_layout.addWidget(self.output_dir_label, 1, 0, 1, 2)  # Span both columns
 
         layout.addWidget(output_group)
 
@@ -665,8 +699,13 @@ class MainWindow(QMainWindow):
         # Update status and parse playlists
         size_gb = selected_drive.size / (1024**3)
         free_gb = selected_drive.free_space / (1024**3)
-        drive_info = f"📱 {selected_drive.label} ({size_gb:.1f}GB, {free_gb:.1f}GB free) - Rekordbox detected!"
+        # Use paragraph tags with margins for better line spacing
+        drive_info = (
+            f"<p style='margin: 0 0 5px 0;'>💽 {selected_drive.label} ({size_gb:.1f}GB, {free_gb:.1f}GB free)</p>"
+            f"<p style='margin: 0;'>🎛️ Rekordbox playlists detected!</p>"
+        )
         self.usb_label.setText(drive_info)
+        self.usb_label.setTextFormat(Qt.RichText)
         self.usb_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
 
         # Parse playlists if this is a different drive
@@ -754,12 +793,29 @@ class MainWindow(QMainWindow):
             return
 
         # Add all playlists (flatten hierarchy for now)
-        for playlist in self.playlist_tree.all_playlists.values():
+        for order, playlist in enumerate(self.playlist_tree.all_playlists.values()):
             if not playlist.is_folder:  # Only show actual playlists, not folders
-                item = QTreeWidgetItem([playlist.name, str(len(playlist.tracks))])
+                track_count = len(playlist.tracks)
+                order_number = order + 1  # Original order from Rekordbox (1-based)
+
+                # Create item with only the playlist name (column 0)
+                item = QTreeWidgetItem([playlist.name])
+
+                # Set the display data for all columns properly
+                # Column 0: Playlist name (string) - already set in constructor
+                # Column 1: Track count - set as integer for proper sorting
+                item.setData(1, Qt.DisplayRole, track_count)
+                # Column 2: Order - set as integer for proper sorting
+                item.setData(2, Qt.DisplayRole, order_number)
+
                 item.setCheckState(0, Qt.Unchecked)
                 item.setData(0, Qt.UserRole, playlist)
                 self.playlist_tree_widget.addTopLevelItem(item)
+
+        # Enable sorting - this will now work properly with numeric data
+        self.playlist_tree_widget.setSortingEnabled(True)
+        # Sort by original order by default (column 2)
+        self.playlist_tree_widget.sortByColumn(2, Qt.AscendingOrder)
 
         self.select_all_button.setEnabled(True)
         self.select_none_button.setEnabled(True)
@@ -826,7 +882,7 @@ class MainWindow(QMainWindow):
         )
         if directory:
             self.output_dir_label.setText(directory)
-            self.output_dir_label.setStyleSheet("color: black; font-style: normal;")
+            self.output_dir_label.setStyleSheet("color: #666; font-style: normal;")
             self._update_conversion_button_state()
 
     def _update_conversion_button_state(self):
