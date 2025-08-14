@@ -30,6 +30,12 @@ A modern Python tool for converting Rekordbox USB playlists to various formats i
 git clone https://github.com/yourusername/universal-dj-usb.git
 cd universal-dj-usb
 
+# instalar libreria de gestion de dependencias
+pip install poetry
+
+# install shell plugin
+poetry self add poetry-plugin-shell
+
 # Install dependencies
 poetry install
 
