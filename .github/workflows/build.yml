@@ -17,31 +17,46 @@ jobs:
             artifact-name: universal-dj-usb-macos
             package-command: |
               mkdir -p release
-              cp dist/udj release/
+              # Copy executables with platform-specific names for direct download
+              cp dist/udj release/udj-macos
               cp -r "dist/Universal DJ USB.app" "release/" 2>/dev/null || echo "No app bundle found"
+              # Create organized package
               cd release
-              tar -czf ../universal-dj-usb-macos.tar.gz *
-            artifact-path: universal-dj-usb-macos.tar.gz
+              zip -r ../universal-dj-usb-macos.zip *
+            artifact-path: universal-dj-usb-macos.zip
             test-command: ./dist/udj --help
+            direct-files: |
+              release/udj-macos
+              release/Universal DJ USB.app
           - os: windows-latest
             artifact-name: universal-dj-usb-windows
             package-command: |
               mkdir release
-              copy "dist\Universal DJ USB.exe" "release\" 2>nul || echo "No GUI exe found"
-              copy "dist\udj.exe" "release\"
+              # Copy executables with platform-specific names for direct download
+              copy "dist\Universal DJ USB.exe" "release\universal-dj-usb-gui-windows.exe" 2>nul || echo "No GUI exe found"
+              copy "dist\udj.exe" "release\udj-windows.exe"
+              # Create organized package
               powershell Compress-Archive -Path release\* -DestinationPath universal-dj-usb-windows.zip
             artifact-path: universal-dj-usb-windows.zip
             test-command: .\dist\udj.exe --help
+            direct-files: |
+              release/udj-windows.exe
+              release/universal-dj-usb-gui-windows.exe
           - os: ubuntu-latest
             artifact-name: universal-dj-usb-linux
             package-command: |
               mkdir release
-              cp dist/udj release/
-              cp dist/"Universal DJ USB" release/ 2>/dev/null || echo "No GUI executable found"
+              # Copy executables with platform-specific names for direct download
+              cp dist/udj release/udj-linux
+              cp dist/"Universal DJ USB" release/universal-dj-usb-gui-linux 2>/dev/null || echo "No GUI executable found"
+              # Create organized package
               cd release
-              tar -czf ../universal-dj-usb-linux.tar.gz *
-            artifact-path: universal-dj-usb-linux.tar.gz
+              zip -r ../universal-dj-usb-linux.zip *
+            artifact-path: universal-dj-usb-linux.zip
             test-command: ./dist/udj --help
+            direct-files: |
+              release/udj-linux
+              release/universal-dj-usb-gui-linux
 
     runs-on: ${{ matrix.os }}
 
@@ -97,11 +112,17 @@ jobs:
         shell: bash
         run: ${{ matrix.package-command }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload packaged artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
           path: ${{ matrix.artifact-path }}
+
+      - name: Upload direct executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}-direct
+          path: ${{ matrix.direct-files }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -110,15 +131,25 @@ jobs:
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
+        with:
+          pattern: universal-dj-usb-*
+          path: artifacts/
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            universal-dj-usb-macos/universal-dj-usb-macos.tar.gz
-            universal-dj-usb-windows/universal-dj-usb-windows.zip
-            universal-dj-usb-linux/universal-dj-usb-linux.tar.gz
+            artifacts/universal-dj-usb-macos.zip
+            artifacts/universal-dj-usb-windows.zip
+            artifacts/universal-dj-usb-linux.zip
+            artifacts/udj-macos
+            artifacts/udj-windows.exe
+            artifacts/udj-linux
+            artifacts/universal-dj-usb-gui-windows.exe
+            artifacts/universal-dj-usb-gui-linux
+            artifacts/Universal DJ USB.app
           draft: false
           prerelease: false
         env:
