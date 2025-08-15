@@ -3,8 +3,26 @@
 
 set -e
 
-# Colors
-RED='\033[0;31m'
+# Colo# Build GUI executable (platform-specific)
+echo -e "${YELLOW}🖥️ Building GUI executable...${NC}"
+if [[ "$PLATFORM" == "darwin" ]]; then
+    # macOS: Build app bundle - use onefile for smaller size
+    poetry run pyinstaller \
+        "${GUI_OPTS[@]}" \
+        --windowed \
+        --onefile \
+        --name "Universal DJ USB" \
+        --osx-bundle-identifier art.juanm.udj \
+        --codesign-identity - \
+        udj_gui.py
+else
+    # Windows/Linux: Build standalone executable
+    poetry run pyinstaller \
+        "${GUI_OPTS[@]}" \
+        --windowed \
+        --name "Universal DJ USB" \
+        udj_gui.py
+fi
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
@@ -48,6 +66,14 @@ COMMON_OPTS=(
     --onefile
     --add-data "src/universal_dj_usb:universal_dj_usb"
     --paths src
+    --strip
+    --optimize 2
+    --exclude-module tkinter
+    --exclude-module matplotlib
+    --exclude-module numpy
+    --exclude-module scipy
+    --exclude-module IPython
+    --exclude-module jupyter
     --hidden-import universal_dj_usb
     --hidden-import universal_dj_usb.models
     --hidden-import universal_dj_usb.parser
@@ -154,6 +180,14 @@ fi
 if [[ "$PLATFORM" == "darwin" ]]; then
     if [[ -d "dist/Universal DJ USB.app" ]]; then
         echo -e "${GREEN}✅ GUI app bundle created${NC}"
+        
+        # Remove extended attributes to help with security warnings
+        echo -e "${YELLOW}🔧 Removing quarantine attributes...${NC}"
+        xattr -cr "dist/Universal DJ USB.app" || echo "Note: Could not remove quarantine attributes"
+        
+        # Show app bundle size
+        echo -e "${BLUE}📊 App bundle size:${NC}"
+        du -sh "dist/Universal DJ USB.app"
     else
         echo -e "${RED}❌ GUI app bundle not found${NC}"
     fi
@@ -163,6 +197,8 @@ else
     
     if [[ -f "dist/$GUI_NAME" ]]; then
         echo -e "${GREEN}✅ GUI executable created${NC}"
+        echo -e "${BLUE}📊 GUI executable size:${NC}"
+        ls -lah "dist/$GUI_NAME"
     else
         echo -e "${RED}❌ GUI executable not found${NC}"
     fi

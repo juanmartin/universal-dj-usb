@@ -132,7 +132,7 @@ jobs:
 
   release:
     timeout-minutes: 15
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && always()
     needs: [build]
     runs-on: ubuntu-latest
 
@@ -144,20 +144,38 @@ jobs:
           path: artifacts/
           merge-multiple: true
 
+      - name: List available files
+        run: |
+          echo "Available artifacts:"
+          find artifacts/ -type f -exec ls -lh {} \;
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/universal-dj-usb-macos.zip
-            artifacts/universal-dj-usb-windows.zip
-            artifacts/universal-dj-usb-linux.zip
-            artifacts/udj-macos
-            artifacts/udj-windows.exe
-            artifacts/udj-linux
-            artifacts/universal-dj-usb-gui-windows.exe
-            artifacts/universal-dj-usb-gui-linux
-            artifacts/Universal DJ USB.app
+          files: artifacts/*
           draft: false
-          prerelease: false
+          prerelease: true
+          body: |
+            ## Beta Release - Partial Build
+
+            ⚠️ **This is a beta release with partial platform support**
+
+            Available builds:
+            - Check the assets below for available platforms
+            - Some platforms may be missing due to build issues
+
+            ### Usage
+            - **macOS**: Download the .app bundle or CLI executable
+            - **Windows/Linux**: Check if builds are available
+
+            ### Known Issues
+            - Some platforms may have build failures
+            - macOS apps are not code-signed (see security warning solutions below)
+
+            ### macOS Security Warning Fix
+            If you get "Apple cannot verify" warning:
+            1. Right-click the app and select "Open"
+            2. Or go to System Preferences → Security & Privacy → General → "Open Anyway"
+            3. Or run: `xattr -d com.apple.quarantine "Universal DJ USB.app"`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
