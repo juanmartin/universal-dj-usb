@@ -52,8 +52,8 @@ class NMLGenerator(BaseGenerator):
         "C#": 8,  # Same as Db
         "D#": 10,  # Same as Eb
         "G#": 9,  # Same as Ab
+    # ...existing code...
     }
-
     def _get_traktor_key_number(self, key_string: str) -> Optional[int]:
         """
         Convert a musical key string to Traktor's numerical system.
@@ -231,6 +231,8 @@ class NMLGenerator(BaseGenerator):
         usb_path: Path = None,
     ) -> None:
         """Add a track entry to the collection."""
+        import os
+        import uuid
         # Get file path
         if self.config.relative_paths:
             file_path = self._normalize_path(track.file_path, output_path)
@@ -242,10 +244,9 @@ class NMLGenerator(BaseGenerator):
 
         # Check if file exists (only add warning for debug purposes)
         if usb_path:
-            # Construct proper absolute path
             track_path_str = str(track.file_path)
             if track_path_str.startswith("/"):
-                track_path_str = track_path_str[1:]  # Remove leading slash
+                track_path_str = track_path_str[1:]
             absolute_file_path = usb_path / track_path_str
         else:
             absolute_file_path = track.file_path
@@ -253,29 +254,65 @@ class NMLGenerator(BaseGenerator):
         if not absolute_file_path.exists():
             warnings.append(f"File not found: {absolute_file_path}")
 
-        # Create entry element with title and artist as attributes
+        # Create entry attributes (title, artist, etc.)
         entry_attribs = {
             "MODIFIED_DATE": "2024/1/1",
             "MODIFIED_TIME": "0",
         }
-
-        # Add title and artist as attributes to ENTRY
         if track.title:
             entry_attribs["TITLE"] = track.title
         if track.artist:
             entry_attribs["ARTIST"] = track.artist
 
+        # Add Traktor-like attributes
+        entry_attribs["LOCK"] = "1"
+        entry_attribs["LOCK_MODIFICATION_TIME"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        entry_attribs["AUDIO_ID"] = uuid.uuid4().hex[:32]
         entry = ET.SubElement(collection, "ENTRY", **entry_attribs)
 
-        # Location with volume information
-        location = ET.SubElement(
-            entry,
-            "LOCATION",
-            DIR=self._get_directory_path(traktor_path),
-            FILE=track.filename,
-            VOLUME=volume_name,
-            VOLUMEID=volume_name,
-        )
+        # Windows-specific: extract drive letter for VOLUME
+        if os.name == "nt":
+            drive_letter = ""
+            if usb_path and hasattr(usb_path, "drive") and usb_path.drive:
+                drive_letter = usb_path.drive.replace(":", "")
+            else:
+                drive_letter = str(track.file_path.drive).replace(":", "")
+            if not drive_letter:
+                drive_letter = str(absolute_file_path.drive).replace(":", "")
+            dir_path = str(track.file_path.parent).replace("\\", "/")
+            if dir_path.startswith(f"{drive_letter}:/"):
+                dir_path = dir_path[len(f"{drive_letter}:/"):] 
+            dir_path = "/:" + "/:".join([p for p in dir_path.split("/") if p]) + "/:"
+            # Use a dummy unique VOLUMEID
+            volumeid = uuid.uuid4().hex[:8]
+            drive_letter_colon = f"{drive_letter}:"
+            location = ET.SubElement(
+                entry,
+                "LOCATION",
+                DIR=dir_path,
+                FILE=track.filename,
+                VOLUME=drive_letter_colon,
+                VOLUMEID=volumeid,
+            )
+        else:
+            # For non-Windows, keep original logic
+            location = ET.SubElement(
+                entry,
+                "LOCATION",
+                DIR=self._get_directory_path(traktor_path),
+                FILE=track.filename,
+                VOLUME=volume_name,
+                VOLUMEID=volume_name,
+            )
+
+        # Add MODIFICATION_INFO (Traktor expects this, even if empty)
+        ET.SubElement(entry, "MODIFICATION_INFO", AUTHOR_TYPE="user")
+
+        # Add LOUDNESS (default values)
+        ET.SubElement(entry, "LOUDNESS", PEAK_DB="0.0", PERCEIVED_DB="0.0", ANALYZED_DB="0.0")
+
+        # Add CUE_V2 (default empty cue)
+        ET.SubElement(entry, "CUE_V2", NAME="AutoGrid", DISPL_ORDER="0", TYPE="4", START="0.0", LEN="0.0", REPEATS="-1", HOTCUE="0")
 
         # Album
         if track.album:
@@ -288,8 +325,10 @@ class NMLGenerator(BaseGenerator):
             "LABEL": "",
             "COMMENT": track.comment or "",
             "RATING": str(track.rating or 0),
-            "FLAGS": "12",
+            "FLAGS": "30",  # Traktor uses 30
             "FILESIZE": str(track.file_size) if track.file_size else "0",
+            "IMPORT_DATE": datetime.now().strftime("%Y/%m/%d"),
+            "COVERARTID": uuid.uuid4().hex[:16],
         }
 
         if track.duration:
@@ -394,37 +433,30 @@ class NMLGenerator(BaseGenerator):
 
     def _generate_track_key(self, track: Track, usb_path: Path = None) -> str:
         """Generate a track key for Traktor using proper NML path formatting."""
-        track_path = track.file_path
-
-        # Ensure we have an absolute path
-        if not track_path.is_absolute():
-            if usb_path:
-                track_path = usb_path / track_path
+        # Get VOLUME, DIR, FILE from LOCATION
+        volume = ""
+        dir_path = ""
+        file_name = ""
+        if hasattr(track, 'file_path'):
+            # Try to extract drive letter and path
+            file_path = track.file_path
+            if usb_path and hasattr(usb_path, "drive") and usb_path.drive:
+                volume = usb_path.drive.replace(":", "") + ":"
+            elif hasattr(file_path, "drive") and file_path.drive:
+                volume = file_path.drive.replace(":", "") + ":"
             else:
-                track_path = track_path.resolve()
-
-        # Extract volume name and path components
-        path_parts = track_path.parts
-        if len(path_parts) >= 3 and path_parts[1] == "Volumes":
-            volume_name = path_parts[2]
-            # Get the path relative to the volume
-            relative_parts = path_parts[3:]  # Skip /, Volumes, volume_name
-            if relative_parts:
-                relative_path = "/:".join(relative_parts)
-                return f"{volume_name}/:{relative_path}"
-            else:
-                return volume_name
+                volume = "E:"
+            # DIR: get parent path, format as /:.../:.../:
+            dir_path = str(file_path.parent).replace("\\", "/")
+            if dir_path.startswith(f"{volume}/"):
+                dir_path = dir_path[len(f"{volume}/"):]
+            dir_path = "/:" + "/:".join([p for p in dir_path.split("/") if p]) + "/:"
+            file_name = file_path.name
         else:
-            # Fallback: if we have a USB path, use its name as volume
-            if usb_path:
-                volume_name = usb_path.name
-                # Convert the track path to relative path format
-                file_path_str = str(track_path).replace("\\", "/")
-                if file_path_str.startswith("/"):
-                    file_path_str = file_path_str[1:]  # Remove leading /
-                relative_path = file_path_str.replace("/", "/:")
-                return f"{volume_name}/:{relative_path}"
-            else:
-                # Last resort fallback
-                file_path_str = str(track_path).replace("\\", "/")
-                return file_path_str
+            # Fallback
+            volume = "E:"
+            dir_path = "/:"
+            file_name = str(track)
+        # Build KEY: VOLUME + DIR + FILE
+        key = f"{volume}{dir_path}{file_name}"
+        return key
