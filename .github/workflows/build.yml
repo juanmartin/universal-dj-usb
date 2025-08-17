@@ -2,7 +2,7 @@ name: Build Executables
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, build-test]
     tags: ["v*"]
   pull_request:
     branches: [main]
@@ -149,33 +149,77 @@ jobs:
           echo "Available artifacts:"
           find artifacts/ -type f -exec ls -lh {} \;
 
+      - name: Determine release type
+        id: release-type
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          if [[ "$TAG_NAME" == *"-beta"* ]] || [[ "$TAG_NAME" == *"-alpha"* ]] || [[ "$TAG_NAME" == *"-rc"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "release_title=🧪 Beta Release $TAG_NAME" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT  
+            echo "release_title=🚀 Release $TAG_NAME" >> $GITHUB_OUTPUT
+          fi
+
+          # Check which platforms are available
+          PLATFORMS_AVAILABLE=""
+          [[ -f artifacts/udj-macos ]] && PLATFORMS_AVAILABLE="$PLATFORMS_AVAILABLE- ✅ **macOS** (CLI + GUI)\n"
+          [[ -f artifacts/udj-windows.exe ]] && PLATFORMS_AVAILABLE="$PLATFORMS_AVAILABLE- ✅ **Windows** (CLI + GUI)\n" 
+          [[ -f artifacts/udj-linux ]] && PLATFORMS_AVAILABLE="$PLATFORMS_AVAILABLE- ✅ **Linux** (CLI + GUI)\n"
+
+          echo "platforms_available<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$PLATFORMS_AVAILABLE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: artifacts/*
           draft: false
-          prerelease: true
+          prerelease: ${{ steps.release-type.outputs.is_prerelease }}
+          name: ${{ steps.release-type.outputs.release_title }}
           body: |
-            ## Beta Release - Partial Build
+            ## ${{ steps.release-type.outputs.release_title }}
 
-            ⚠️ **This is a beta release with partial platform support**
+            ### 📱 Available Platforms
+            ${{ steps.release-type.outputs.platforms_available }}
 
-            Available builds:
-            - Check the assets below for available platforms
-            - Some platforms may be missing due to build issues
+            ### 📥 Downloads
 
-            ### Usage
-            - **macOS**: Download the .app bundle or CLI executable
-            - **Windows/Linux**: Check if builds are available
+            **📁 Complete Packages:**
+            - Download the `.zip` files for organized packages with both CLI and GUI
 
-            ### Known Issues
-            - Some platforms may have build failures
-            - macOS apps are not code-signed (see security warning solutions below)
+            **🎯 Individual Executables:**
+            - Download individual `udj-*` (CLI) or `*-gui-*` files for direct use
 
-            ### macOS Security Warning Fix
-            If you get "Apple cannot verify" warning:
+            ### 🍎 macOS Users
+
+            **If you get "Apple cannot verify" security warning:**
+
+            **Method 1 (Easiest):**
             1. Right-click the app and select "Open"
-            2. Or go to System Preferences → Security & Privacy → General → "Open Anyway"
-            3. Or run: `xattr -d com.apple.quarantine "Universal DJ USB.app"`
+            2. Click "Open" in the dialog
+
+            **Method 2 (System Settings):**
+            1. Go to System Settings → Privacy & Security
+            2. Scroll down and click "Open Anyway" 
+
+            **Method 3 (Terminal):**
+            ```bash
+            xattr -d com.apple.quarantine "Universal DJ USB.app"
+            ```
+
+            ### 🐞 Found Issues?
+
+            Please report bugs with:
+            - Platform (macOS/Windows/Linux)  
+            - App version
+            - Steps to reproduce
+
+            ---
+
+            ${{ steps.release-type.outputs.is_prerelease == 'true' && '⚠️ **This is a pre-release for testing purposes**' || '🎉 **This is a stable release**' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
