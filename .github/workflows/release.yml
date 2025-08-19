@@ -30,13 +30,15 @@ jobs:
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Wait for build to complete
-        uses: lewagon/wait-on-check-action@v1.3.1
+      - name: Wait for build workflow to complete
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: wait-for-build
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: build
           ref: ${{ steps.tag.outputs.tag }}
-          check-name: "Build" # check for successful build on all OS/archs
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
+          timeoutSeconds: 600
+          intervalSeconds: 10
 
       - name: Download build artifacts
         uses: dawidd6/action-download-artifact@v3
