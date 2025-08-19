@@ -1,84 +1,35 @@
-name: Build Executables
+name: Build
 
 on:
   push:
-    branches: [main, develop]
-    tags: ["v*"]
+    branches: [main, build-test]
+    tags: ["v*"] # Build on version tags
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  APP_NAME: "Universal DJ USB"
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  build:
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
-        include:
-          - os: macos-latest
-            artifact-name: universal-dj-usb-macos
-            package-command: |
-              mkdir -p release
-              # Copy executables with platform-specific names for direct download
-              cp dist/udj release/udj-macos
-              cp -r "dist/Universal DJ USB.app" "release/" 2>/dev/null || echo "No app bundle found"
-              # Create organized package
-              cd release
-              zip -r ../universal-dj-usb-macos.zip *
-            artifact-path: universal-dj-usb-macos.zip
-            test-command: ./dist/udj --help
-            direct-files: |
-              release/udj-macos
-              release/Universal DJ USB.app
-          - os: windows-latest
-            artifact-name: universal-dj-usb-windows
-            package-command: |
-              mkdir release
-              # Copy executables with platform-specific names for direct download
-              copy "dist\Universal DJ USB.exe" "release\universal-dj-usb-gui-windows.exe" 2>nul || echo "No GUI exe found"
-              copy "dist\udj.exe" "release\udj-windows.exe"
-              # Create organized package
-              powershell Compress-Archive -Path release\* -DestinationPath universal-dj-usb-windows.zip
-            artifact-path: universal-dj-usb-windows.zip
-            test-command: .\dist\udj.exe --help
-            direct-files: |
-              release/udj-windows.exe
-              release/universal-dj-usb-gui-windows.exe
-          - os: ubuntu-latest
-            artifact-name: universal-dj-usb-linux
-            package-command: |
-              mkdir release
-              # Copy executables with platform-specific names for direct download
-              cp dist/udj release/udj-linux
-              cp dist/"Universal DJ USB" release/universal-dj-usb-gui-linux 2>/dev/null || echo "No GUI executable found"
-              # Create organized package
-              cd release
-              zip -r ../universal-dj-usb-linux.zip *
-            artifact-path: universal-dj-usb-linux.zip
-            test-command: ./dist/udj --help
-            direct-files: |
-              release/udj-linux
-              release/universal-dj-usb-gui-linux
-
-    runs-on: ${{ matrix.os }}
-
+  # Run tests first
+  test:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
-        id: setup-python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
-          version: 1.6.1
+          version: 1.7.1
           virtualenvs-create: true
           virtualenvs-in-project: true
 
@@ -87,77 +38,112 @@ jobs:
         uses: actions/cache@v3
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root --with dev --verbose
+        run: poetry install --with dev
 
-      - name: Install project
-        run: poetry install --no-interaction
+      - name: Run tests
+        run: poetry run pytest
 
-      - name: Make build script executable (Unix)
-        if: runner.os != 'Windows'
-        run: chmod +x build.sh
+  # Build for macOS (both architectures)
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Intel build
+          - os: macos-13
+            target: macos-x64
+            arch: x64
+          # macOS Apple Silicon build
+          - os: macos-14
+            target: macos-arm64
+            arch: arm64
 
-      - name: Build executables
-        shell: bash
-        run: ./build.sh
-
-      - name: Test CLI executable
-        shell: bash
-        run: ${{ matrix.test-command }}
-
-      - name: Package artifacts
-        shell: bash
-        run: ${{ matrix.package-command }}
-
-      - name: Upload packaged artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: ${{ matrix.artifact-path }}
-
-      - name: Upload direct executables
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}-direct
-          path: ${{ matrix.direct-files }}
-
-  release:
-    timeout-minutes: 15
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          pattern: universal-dj-usb-*
-          path: artifacts/
-          merge-multiple: true
+          submodules: recursive
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          files: |
-            artifacts/universal-dj-usb-macos.zip
-            artifacts/universal-dj-usb-windows.zip
-            artifacts/universal-dj-usb-linux.zip
-            artifacts/udj-macos
-            artifacts/udj-windows.exe
-            artifacts/udj-linux
-            artifacts/universal-dj-usb-gui-windows.exe
-            artifacts/universal-dj-usb-gui-linux
-            artifacts/Universal DJ USB.app
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ matrix.arch }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --with dev
+
+      # Build using the build script (which handles its own dependency installation)
+      - name: Build executables
+        run: |
+          chmod +x build.sh
+          ./build.sh --both --skip-tests
+
+      # Check build results and sizes
+      - name: Check bundle sizes
+        run: |
+          echo "=== Build Results for ${{ matrix.target }} ==="
+          ls -la dist/ || echo "No dist directory"
+
+          [ -f "dist/udj" ] && echo "CLI size: $(ls -lh dist/udj | awk '{print $5}')"
+          [ -d "dist/${{ env.APP_NAME }}.app" ] && echo "GUI app size: $(du -sh "dist/${{ env.APP_NAME }}.app" | cut -f1)"
+          [ -f dist/*.dmg ] && echo "DMG size: $(du -sh dist/*.dmg | cut -f1)"
+
+      # Prepare artifacts with consistent naming
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts
+
+          # Get version from pyproject.toml
+          VERSION=$(poetry version -s)
+
+          # macOS artifacts with architecture-specific naming
+          if [ -f "dist/udj" ]; then
+            cp "dist/udj" "artifacts/udj-${VERSION}-${{ matrix.target }}"
+            chmod +x "artifacts/udj-${VERSION}-${{ matrix.target }}"
+          fi
+
+          # Look for DMG files and rename appropriately
+          for dmg in dist/*.dmg; do
+            if [ -f "$dmg" ]; then
+              # Extract base name and add version and arch
+              base_name=$(basename "$dmg" .dmg)
+              cp "$dmg" "artifacts/${base_name}-${VERSION}-${{ matrix.target }}.dmg"
+            fi
+          done
+
+          # If no DMG but app bundle exists, create tar.gz
+          if [ -d "dist/${{ env.APP_NAME }}.app" ] && [ ! -f dist/*.dmg ]; then
+            tar -czf "artifacts/Universal-DJ-USB-${VERSION}-${{ matrix.target }}.tar.gz" -C dist "${{ env.APP_NAME }}.app"
+          fi
+
+          # Show what we created
+          echo "Created artifacts:"
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Universal-DJ-USB-${{ matrix.target }}
+          path: artifacts/
+          retention-days: 30

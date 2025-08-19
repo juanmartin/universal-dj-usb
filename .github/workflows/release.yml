@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"] # Automatically create release when tag is pushed
+  workflow_dispatch: # Also allow manual triggering
+    inputs:
+      tag:
+        description: "Tag to create release for (e.g., v1.0.0)"
+        required: true
+        type: string
+      draft:
+        description: "Create as draft release"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for build to complete
+        uses: lewagon/wait-on-check-action@v1.3.1
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          check-name: "build"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+      - name: Download build artifacts
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: build.yml
+          commit: ${{ github.sha }}
+          path: artifacts
+
+      - name: Organize release files
+        run: |
+          mkdir -p release-files
+
+          # Copy macOS Intel files (updated artifact names)
+          if [ -d "artifacts/Universal-DJ-USB-macos-x64" ]; then
+            echo "Processing macOS Intel builds..."
+            cp artifacts/Universal-DJ-USB-macos-x64/*.dmg release-files/ 2>/dev/null || true
+            cp artifacts/Universal-DJ-USB-macos-x64/*.tar.gz release-files/ 2>/dev/null || true
+            cp artifacts/Universal-DJ-USB-macos-x64/udj-* release-files/ 2>/dev/null || true
+          fi
+
+          # Copy macOS ARM64 files (updated artifact names)
+          if [ -d "artifacts/Universal-DJ-USB-macos-arm64" ]; then
+            echo "Processing macOS ARM64 builds..."
+            cp artifacts/Universal-DJ-USB-macos-arm64/*.dmg release-files/ 2>/dev/null || true
+            cp artifacts/Universal-DJ-USB-macos-arm64/*.tar.gz release-files/ 2>/dev/null || true
+            cp artifacts/Universal-DJ-USB-macos-arm64/udj-* release-files/ 2>/dev/null || true
+          fi
+
+          echo "Release files prepared:"
+          ls -la release-files/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Universal DJ USB ${{ steps.tag.outputs.tag }}
+          draft: true # Always create as draft so you can customize before publishing
+          files: release-files/*
+          body: |
+            ## Universal DJ USB ${{ steps.tag.outputs.tag }}
+
+            Convert Rekordbox USB playlists to various formats (NML, M3U, M3U8).
+
+            ### What's New in This Release
+            > **Note**: This release was created automatically. Edit this section to add specific changes and improvements for this version.
+
+            ### Downloads
+
+            **macOS GUI Applications:**
+            - **Intel (x64)**: `Universal-DJ-USB-*-macos-x64.dmg` - Optimized for Intel Macs
+            - **Apple Silicon (ARM64)**: `Universal-DJ-USB-*-macos-arm64.dmg` - Optimized for M1/M2/M3 Macs
+
+            **macOS Command Line Tools:**
+            - **Intel (x64)**: `udj-*-macos-x64` - CLI for Intel Macs
+            - **Apple Silicon (ARM64)**: `udj-*-macos-arm64` - CLI for M1/M2/M3 Macs
+
+            ### Installation
+
+            **macOS GUI:**
+            1. Download the appropriate `.dmg` file for your Mac architecture
+            2. Double-click the DMG file to mount it
+            3. Drag the app to the Applications folder shortcut
+            4. Right-click the app in Applications and select "Open" to bypass Gatekeeper on first launch
+
+            **macOS CLI:**
+            1. Download the appropriate CLI binary for your architecture
+            2. Make it executable: `chmod +x udj-*-macos-*`
+            3. Run: `./udj-*-macos-* --help`
+
+            ### Key Features in This Release
+            - **Optimized Build Sizes**: 50-70% smaller than previous versions
+            - **Multi-Architecture Support**: Native builds for both Intel and Apple Silicon Macs  
+            - **Improved Performance**: Faster startup and conversion times
+            - **Better Qt Integration**: Minimal Qt footprint with essential components only
+
+            ### Usage Examples
+
+            **GUI Application:**
+            - Launch from Applications folder
+            - Auto-detects USB drives with Rekordbox databases
+            - Interactive playlist selection and conversion
+
+            **CLI Examples:**
+            ```bash
+            # List available playlists
+            udj list-playlists /Volumes/YOUR_USB_DRIVE
+
+            # Convert all playlists to Traktor NML format
+            udj convert /Volumes/YOUR_USB_DRIVE -f nml -o ~/TraktorPlaylists
+
+            # Convert specific playlists to M3U8 format  
+            udj convert /Volumes/YOUR_USB_DRIVE -p "House Music" -p "Techno Sets" -f m3u8
+
+            # Get detailed playlist information
+            udj info /Volumes/YOUR_USB_DRIVE "My Playlist Name"
+            ```
+
+            ### Architecture Notes
+            - **Intel Macs**: Use the `x64` versions
+            - **Apple Silicon Macs (M1/M2/M3/M4)**: Use the `arm64` versions
+            - If unsure of your architecture, run: `uname -m` in Terminal
+
+            ---
+
+            *This release was built automatically from tag ${{ steps.tag.outputs.tag }}*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

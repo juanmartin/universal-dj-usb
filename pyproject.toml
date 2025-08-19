@@ -1,12 +1,14 @@
 [tool.poetry]
 name = "universal-dj-usb"
-version = "0.2.0"
+version = "0.1.0"
 description = "Convert Rekordbox USB playlists to various formats (NML, M3U, M3U8)"
 authors = ["Juan Martin <juanmartinsesali@gmail.com>"]
 readme = "README.md"
 license = "MIT"
 homepage = "https://github.com/juanmartin/universal-dj-usb"
 repository = "https://github.com/juanmartin/universal-dj-usb"
+packages = [{ include = "universal_dj_usb", from = "src" }]
+include = ["src/universal_dj_usb/assets/**/*"]
 keywords = ["dj", "playlist", "rekordbox", "traktor", "nml", "m3u", "converter"]
 classifiers = [
   "Development Status :: 3 - Alpha",
