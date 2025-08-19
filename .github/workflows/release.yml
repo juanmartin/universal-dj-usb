@@ -34,7 +34,7 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
           ref: ${{ steps.tag.outputs.tag }}
-          check-name: "build"
+          check-name: "Build" # check for successful build on all OS/archs
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
