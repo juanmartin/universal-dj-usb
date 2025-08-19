@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "universal-dj-usb"
-version = "0.1.0"
+version = "0.1.0.rc1"
 description = "Convert Rekordbox USB playlists to various formats (NML, M3U, M3U8)"
 authors = ["Juan Martin <juanmartinsesali@gmail.com>"]
 readme = "README.md"
