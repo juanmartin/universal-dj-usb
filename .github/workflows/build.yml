@@ -2,11 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [main, build-test]
     tags: ["v*"] # Build on version tags
   pull_request:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch: # manual
 
 env:
   APP_NAME: "Universal DJ USB"
