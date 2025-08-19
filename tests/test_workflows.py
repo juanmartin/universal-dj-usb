@@ -71,3 +71,48 @@ def test_build_workflow_structure():
     build_job = workflow["jobs"]["build"]
     assert "strategy" in build_job
     assert "matrix" in build_job["strategy"]
+
+
+def test_workflow_integration():
+    """Test that build and release workflows are properly integrated."""
+    build_file = Path(__file__).parent.parent / ".github" / "workflows" / "build.yml"
+    release_file = Path(__file__).parent.parent / ".github" / "workflows" / "release.yml"
+    
+    with open(build_file) as f:
+        build_workflow = yaml.safe_load(f)
+    
+    with open(release_file) as f:
+        release_workflow = yaml.safe_load(f)
+    
+    # Both workflows should trigger on version tags
+    build_on = build_workflow[True]  # "on" key becomes True
+    release_on = release_workflow[True]  # "on" key becomes True
+    
+    assert "push" in build_on
+    assert "push" in release_on
+    assert "tags" in build_on["push"]  
+    assert "tags" in release_on["push"]
+    assert build_on["push"]["tags"] == ["v*"]
+    assert release_on["push"]["tags"] == ["v*"]
+    
+    # Release workflow should wait for build workflow
+    release_steps = release_workflow["jobs"]["create-release"]["steps"]
+    wait_step = None
+    download_step = None
+    
+    for step in release_steps:
+        if "Wait for build workflow" in step.get("name", ""):
+            wait_step = step
+        elif "Download build artifacts" in step.get("name", ""):
+            download_step = step
+    
+    # Verify wait step configuration
+    assert wait_step is not None
+    assert wait_step["uses"] == "ahmadnassri/action-workflow-run-wait@v1"
+    assert wait_step["with"]["workflow"] == "build.yml"
+    
+    # Verify download step configuration
+    assert download_step is not None  
+    assert download_step["uses"] == "dawidd6/action-download-artifact@v3"
+    assert download_step["with"]["workflow"] == "build.yml"
+    assert download_step["with"]["workflow_conclusion"] == "success"
