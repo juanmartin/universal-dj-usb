@@ -31,20 +31,20 @@ jobs:
           fi
 
       - name: Wait for build workflow to complete
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: ahmadnassri/action-workflow-run-wait@v1
         id: wait-for-build
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: build
+          timeout: 600000  # 10 minutes in milliseconds
+          delay: 10000     # 10 seconds delay between checks in milliseconds  
+          workflow: build.yml
           ref: ${{ steps.tag.outputs.tag }}
-          timeoutSeconds: 600
-          intervalSeconds: 10
 
       - name: Download build artifacts
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build.yml
           commit: ${{ github.sha }}
+          workflow_conclusion: success
           path: artifacts
 
       - name: Organize release files
