@@ -42,7 +42,9 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
 from PySide6.QtGui import QIcon, QFont, QPixmap, QPalette, QAction
 
 import psutil
+from typing import Optional
 
+from . import __version__
 from .parser import RekordboxParser
 from .models import ConversionConfig, Playlist, ConversionResult, PlaylistTree
 from .generators import NMLGenerator, M3UGenerator, M3U8Generator
@@ -490,9 +492,16 @@ class MainWindow(QMainWindow):
 
     def _setup_status_bar(self):
         """Setup the status bar."""
-        self.statusBar().showMessage(
-            "Ready - Please connect a USB drive with Rekordbox data"
-        )
+        sb = self.statusBar()
+        sb.showMessage("Ready - Please connect a USB drive with Rekordbox data")
+
+        # Add current application version (from pyproject.toml) as a permanent right-side label
+        version = __version__
+        if version and version != "0.0.0":
+            version_label = QLabel(f"v{version}")
+            version_label.setStyleSheet("color: #888;")
+            version_label.setToolTip("Application version")
+            sb.addPermanentWidget(version_label)
 
     def _start_usb_detection(self):
         """Start USB drive detection in background."""
@@ -1030,7 +1039,8 @@ def main():
 
     app = QApplication(sys.argv)
     app.setApplicationName("Universal DJ USB Playlist Converter")
-    app.setApplicationVersion("0.2.0")
+    if __version__ and __version__ != "0.0.0":
+        app.setApplicationVersion(__version__)
 
     # Ensure app doesn't quit when last window closes in some cases
     app.setQuitOnLastWindowClosed(True)

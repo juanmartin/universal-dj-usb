@@ -10,6 +10,7 @@ from rich.progress import Progress, TaskID
 from rich.table import Table
 from rich.panel import Panel
 
+from . import __version__
 from .parser import RekordboxParser
 from .models import ConversionConfig, Playlist
 from .generators import NMLGenerator, M3UGenerator, M3U8Generator
@@ -40,6 +41,7 @@ def setup_logging(debug: bool = False) -> None:
 
 @click.group()
 @click.option("--debug", is_flag=True, help="Enable debug output")
+@click.version_option(version=__version__, prog_name="Universal DJ USB Playlist Converter")
 @click.pass_context
 def cli(ctx: click.Context, debug: bool) -> None:
     """Universal DJ USB Playlist Converter.

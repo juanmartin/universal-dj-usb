@@ -58,6 +58,10 @@ esac
 NEW_VERSION=$(poetry version -s)
 echo -e "${GREEN}New version: ${NEW_VERSION}${NC}"
 
+# Reinstall to sync the installed metadata with the new version
+echo -e "${YELLOW}Syncing installed package version...${NC}"
+poetry install
+
 # Confirm with user
 echo -e "${YELLOW}This will:${NC}"
 echo "  1. Commit the version change"
