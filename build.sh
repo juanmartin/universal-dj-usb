@@ -95,7 +95,16 @@ build_cli() {
 }
 
 create_dmg_gui() {
-    local dmg_name="Universal-DJ-USB-${VERSION}-${ARCH_SUFFIX}.dmg"
+    # Determine appropriate naming based on context
+    local dmg_name
+    if [[ "${CI:-}" == "true" ]]; then
+        # CI build: use the BUILD_ID from GitHub Actions environment
+        local build_id="${BUILD_ID:-$VERSION}"
+        dmg_name="Universal-DJ-USB-${build_id}-${PLATFORM}-${ARCH_SUFFIX}.dmg"
+    else
+        # Local build: include version
+        dmg_name="Universal-DJ-USB-${VERSION}-${ARCH_SUFFIX}.dmg"
+    fi
     
     # Create temporary DMG directory structure
     local temp_dmg_dir=$(mktemp -d)
