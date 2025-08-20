@@ -1,8 +1,10 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"] # Automatically create release when tag is pushed
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+    # No branch filter - let the if condition handle tag detection
   workflow_dispatch: # Also allow manual triggering
     inputs:
       tag:
@@ -18,27 +20,29 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    # Only run for successful builds on tags, or manual trigger
+    if: |
+      (github.event.workflow_run.conclusion == 'success' && 
+       startsWith(github.event.workflow_run.head_branch, 'refs/tags/')) ||
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
       - name: Get tag name
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            # Extract tag from workflow_run head_branch
+            TAG_REF="${{ github.event.workflow_run.head_branch }}"
+            if [[ "$TAG_REF" == refs/tags/* ]]; then
+              echo "tag=${TAG_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            else
+              echo "Error: Not triggered by a tag push"
+              exit 1
+            fi
           fi
-
-      - name: Wait for build workflow to complete
-        uses: fountainhead/action-wait-for-check@v1.1.0
-        id: wait-for-build
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: build
-          ref: ${{ steps.tag.outputs.tag }}
-          timeoutSeconds: 600
-          intervalSeconds: 10
 
       - name: Download build artifacts
         uses: dawidd6/action-download-artifact@v3
