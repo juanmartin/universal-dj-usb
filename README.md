@@ -1,6 +1,8 @@
 <h1 align="center" >Universal DJ USB</h1>
 
-<img src="https://raw.githubusercontent.com/juanmartin/universal-dj-usb/refs/heads/main/src/universal_dj_usb/assets/icons/icono.png" width="400" style="margin-left: auto; margin-right: auto; display: block; margin-bottom: 20" alt="Universal DJ USB Logo" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/juanmartin/universal-dj-usb/refs/heads/main/src/universal_dj_usb/assets/icons/icono.png" width="400" alt="Universal DJ USB Logo" />
+</div>
 
 <div align="center">
 
