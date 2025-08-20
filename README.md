@@ -9,11 +9,11 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/juanmartin/universal-dj-usb/build.yml?branch=main)](https://github.com/juanmartin/universal-dj-usb/actions)
-[![GitHub release](https://img.shields.io/github/release/Naereen/StrapDown.js.svg)](https://github.com/juanmartin/universal-dj-usb/releases)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/cdnjs/cdnjs.svg?style=flat)](https://github.com/juanmartin/universal-dj-usb/pulls)
+![GitHub Release](https://img.shields.io/github/v/release/juanmartin/universal-dj-usb)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/juanmartin/universal-dj-usb/total)
 [![PR's Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](http://makeapullrequest.com)
-[![GitHub contributors](https://badgen.net/github/contributors/Naereen/Strapdown.js)](https://github.com/juanmartin/universal-dj-usb/graphs/contributors/)
-[![Github all releases](https://img.shields.io/github/downloads/Naereen/StrapDown.js/total.svg)](https://github.com/juanmartin/universal-dj-usb/releases/)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues-pr/juanmartin/universal-dj-usb)
+![GitHub contributors](https://img.shields.io/github/contributors/juanmartin/universal-dj-usb)
 
 A tool for converting playlists present in Rekordbox-ready USB drives to various formats including Traktor NML, M3U, and M3U8.
 
