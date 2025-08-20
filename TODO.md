@@ -1,0 +1,25 @@
+# To Do
+
+- [x]  Version in status bar y CLI
+- [x]  Better README
+- [ ]  Windows support
+  - [ ]  playlist generation
+  - [ ]  builds
+- [ ]  Tooltips to help users
+- [ ]  CASTELLANO support
+- [ ]  Serato playlist support
+- [ ]  Enhance analysis!
+- [ ]  Replace dialog! sure?
+- [ ]  QUICK SAVE  (opinionated)
+  - USB drive folder structure
+  - All formats
+  - relative/absolute ??
+- [ ]  WEBSITE (optional)
+- [ ]  REMEMBER last output dir
+- [x]  output dir negro. ponerlo blanco y que se lea entero
+- [x]  PORTABLE EXEcutable
+  - [x]  CI/CD Releases
+  - [ ]  code signing y notarization (macos)?
+- [ ]  Refresh usb on launch
+- [x]  `list-playlists` que la columna tengo mas ancho que la cantidad de tracks
+- [x]  sorting en columnas + default rekordbox sorting
