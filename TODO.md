@@ -8,14 +8,15 @@
 - [ ]  Tooltips to help users
 - [ ]  CASTELLANO support
 - [ ]  Serato playlist support
-- [ ]  Enhance analysis!
+- [ ]  Copy tracks to folder FEATURE
+- [ ]  Enhance analysis with ANLZ data
 - [ ]  Replace dialog! sure?
 - [ ]  QUICK SAVE  (opinionated)
   - USB drive folder structure
   - All formats
   - relative/absolute ??
 - [ ]  WEBSITE (optional)
-- [ ]  REMEMBER last output dir
+- [ ]  REMEMBER last output dir (optional)
 - [x]  output dir negro. ponerlo blanco y que se lea entero
 - [x]  PORTABLE EXEcutable
   - [x]  CI/CD Releases
