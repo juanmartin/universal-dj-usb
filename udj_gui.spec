@@ -4,6 +4,8 @@ Optimized PyInstaller spec file for Universal DJ USB GUI.
 This file contains all build customizations for size optimization.
 """
 
+import sys
+
 # Qt modules to exclude - these are not used by our GUI
 qt_excludes = [
     'PySide6.QtNetwork',
@@ -120,34 +122,40 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,  # Include binaries for onefile build
+    a.datas,     # Include data files for onefile build
     [],
-    exclude_binaries=True,
     name='Universal DJ USB',
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,  # Strip debug symbols
-    upx=False,   # Disable UPX (causes issues on macOS)
+    upx=False,   # Disable UPX (causes issues on some systems)
+    upx_exclude=[],
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='src/universal_dj_usb/assets/icons/icono.ico',  # Windows icon
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=True,  # Strip debug symbols from libraries
-    upx=False,   # Disable UPX
-    upx_exclude=[],
-    name='Universal DJ USB',
-)
+# Remove COLLECT for onefile build - we don't need it
+# coll = COLLECT(
+#     exe,
+#     a.binaries,
+#     a.datas,
+#     strip=True,  # Strip debug symbols from libraries
+#     upx=False,   # Disable UPX
+#     upx_exclude=[],
+#     name='Universal DJ USB',
+# )
 
-app = BUNDLE(
-    coll,
-    name='Universal DJ USB.app',
-    icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
-    bundle_identifier='art.juanm.udj',
-)
+# macOS bundle (only used on macOS)
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        exe,  # Changed from coll to exe for onefile
+        name='Universal DJ USB.app',
+        icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
+        bundle_identifier='art.juanm.udj',
+    )
