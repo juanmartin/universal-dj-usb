@@ -1,7 +1,6 @@
 """M3U8 playlist generator with extended metadata."""
 
 from pathlib import Path
-from urllib.parse import quote
 
 from .base import BaseGenerator
 from ..models import Playlist, ConversionResult
@@ -73,10 +72,7 @@ class M3U8Generator(BaseGenerator):
                     # Use relative paths - keep the original working logic
                     track_path = self._normalize_path(track.file_path, output_path)
 
-                # URL encode the path for M3U8 compatibility if needed
-                if self.config.m3u_extended:
-                    track_path = quote(track_path, safe="/:")
-
+                # Note: No URL encoding needed for local file paths in M3U8
                 lines.append(track_path)
 
             # Write the M3U8 file with UTF-8 encoding
