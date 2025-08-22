@@ -22,7 +22,7 @@ def _get_version() -> str:
                 try:
                     import tomllib
                     data = tomllib.loads(text)
-                    return data["tool"]["poetry"]["version"]
+                    return data["project"]["version"]
                 except (ImportError, KeyError):
                     pass
                 
@@ -30,7 +30,7 @@ def _get_version() -> str:
                 try:
                     import toml
                     data = toml.loads(text)
-                    return data["tool"]["poetry"]["version"]
+                    return data["project"]["version"]
                 except (ImportError, KeyError):
                     pass
                 
