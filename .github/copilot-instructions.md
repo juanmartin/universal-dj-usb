@@ -8,7 +8,7 @@ This is a clean, modern Python application that converts Rekordbox USB playlists
 
 ## Current Architecture (Post-Migration August 2025)
 
-**Clean, minimal structure achieved through project restructuring:**
+**Clean, minimal structure achieved through project restructuring and uv migration:**
 
 - **Models**: All data structures in `models.py` (Track, Playlist, PlaylistTree, ConversionConfig, ConversionResult)
 - **Parser**: Single Kaitai Struct-based parser in `parser.py` (removed duplicate parsers)
@@ -25,7 +25,7 @@ This is a clean, modern Python application that converts Rekordbox USB playlists
 ## Key Technologies
 
 - **Python 3.9+**: Main programming language (updated constraint for PySide6 compatibility)
-- **Poetry**: Dependency management and build system (single config file approach)
+- **uv**: Modern Python package manager and build system (migrated from Poetry August 2025)
 - **PySide6**: Modern Qt6-based GUI framework for cross-platform desktop application
 - **Kaitai Struct**: Direct parsing of Rekordbox PDB files (removed rekordcrate dependency)
 - **Click**: CLI framework with rich integration
@@ -34,7 +34,7 @@ This is a clean, modern Python application that converts Rekordbox USB playlists
 - **pathlib**: Cross-platform path handling
 - **psutil**: System and process utilities for USB drive detection
 
-**Removed dependencies:** Tkinter (GUI), rekordcrate (replaced with direct Kaitai), toml, pydantic, pathlib2 (now built-in)
+**Removed dependencies:** Tkinter (GUI), rekordcrate (replaced with direct Kaitai), toml, pydantic, pathlib2 (now built-in), Poetry (replaced with uv)
 
 ## Development Guidelines
 
@@ -89,7 +89,7 @@ src/universal_dj_usb/
 
 ### Build and Dependency Management
 
-- **Poetry only**: No Makefile, shell scripts, or setup.py needed
+- **uv only**: No Makefile, shell scripts, or setup.py needed (migrated from Poetry August 2025)
 - **pyproject.toml**: Single configuration file for everything
 - **Minimal dependencies**: Only essential packages included
 - **Dev dependencies**: Separated development tools (pytest, black, flake8, mypy)
@@ -231,7 +231,7 @@ config = ConversionConfig(
 - Direct Kaitai Struct parsing eliminates external dependencies
 - Modular generator design makes adding new formats trivial
 - Rich CLI provides excellent user experience with progress bars and tables
-- Poetry-only dependency management (no Makefiles or shell scripts)
+- uv-only dependency management (migrated from Poetry August 2025)
 - All duplicate and debug files have been cleaned up
 - Type hints and dataclasses used throughout for better code quality
 
@@ -239,7 +239,7 @@ config = ConversionConfig(
 
 ```bash
 
-> poetry run udj --help
+> uv run udj --help
 
 Usage: udj [OPTIONS] COMMAND [ARGS]...
 
@@ -258,7 +258,7 @@ Commands:
   list-playlists  List all available playlists on the USB drive.
 
 
-> poetry run udj convert --help
+> uv run udj convert --help
 
 Usage: udj convert [OPTIONS] USB_PATH
 
@@ -274,7 +274,7 @@ Options:
                                   Use relative or absolute file paths
   --help                          Show this message and exit.
 
-> poetry run udj info --help
+> uv run udj info --help
 
 Usage: udj info [OPTIONS] USB_PATH PLAYLIST_NAME
 
@@ -290,7 +290,7 @@ Options:
 A modern PySide6-based GUI is also available:
 
 ```bash
-poetry run udj-gui
+uv run udj-gui
 ```
 
 ### GUI Features
@@ -320,6 +320,41 @@ poetry run udj-gui
 - Built-in log viewer with real-time output
 - Verbose logging option
 - Clear logs functionality
+
+## Release Management
+
+### Secure Release Script
+
+The project uses a secure, pure shell release script at `scripts/release.sh`:
+
+**Security Features:**
+
+- ✅ No code injection vulnerabilities (pure shell/sed operations)
+- ✅ Input validation with regex patterns
+- ✅ Backup/restore mechanism for safe rollback
+- ✅ No dynamic Python code execution
+
+**Usage:**
+
+```bash
+# Semantic version bumping
+scripts/release.sh patch    # 0.1.0 -> 0.1.1
+scripts/release.sh minor    # 0.1.0 -> 0.2.0
+scripts/release.sh major    # 0.1.0 -> 1.0.0
+
+# Set specific version
+scripts/release.sh 1.0.0-beta.1
+```
+
+**Process:**
+
+1. Validates git working directory is clean
+2. Updates version in `pyproject.toml` using sed
+3. Syncs environment with `uv sync`
+4. Commits version change and creates git tag
+5. Pushes to origin, triggering CI/CD pipeline
+
+**Replaced vulnerable Poetry-based script** with shell arithmetic and sed operations for maximum security.
 
 # Copilot specifics
 
