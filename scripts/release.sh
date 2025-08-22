@@ -39,28 +39,62 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 # Get current version
-CURRENT_VERSION=$(poetry version -s)
+CURRENT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
 echo -e "${YELLOW}Current version: ${CURRENT_VERSION}${NC}"
+
+# Function to update version in pyproject.toml
+update_version() {
+    local new_version="$1"
+    uv run python -c "
+import tomllib
+import tomli_w
+
+with open('pyproject.toml', 'rb') as f:
+    data = tomllib.load(f)
+
+data['project']['version'] = '$new_version'
+
+with open('pyproject.toml', 'wb') as f:
+    tomli_w.dump(data, f)
+"
+}
 
 # Bump version
 case "$VERSION_ARG" in
     "patch"|"minor"|"major")
         echo -e "${YELLOW}Bumping ${VERSION_ARG} version...${NC}"
-        poetry version "$VERSION_ARG"
+        # For semantic version bumping, we need to implement version parsing
+        NEW_VERSION=$(uv run python -c "
+import tomllib
+from packaging.version import Version
+
+with open('pyproject.toml', 'rb') as f:
+    current = tomllib.load(f)['project']['version']
+
+v = Version(current)
+if '$VERSION_ARG' == 'patch':
+    new_v = f'{v.major}.{v.minor}.{v.micro + 1}'
+elif '$VERSION_ARG' == 'minor':
+    new_v = f'{v.major}.{v.minor + 1}.0'
+elif '$VERSION_ARG' == 'major':
+    new_v = f'{v.major + 1}.0.0'
+print(new_v)
+")
+        update_version "$NEW_VERSION"
         ;;
     *)
         echo -e "${YELLOW}Setting version to ${VERSION_ARG}...${NC}"
-        poetry version "$VERSION_ARG"
+        NEW_VERSION="$VERSION_ARG"
+        update_version "$NEW_VERSION"
         ;;
 esac
-
-# Get new version
-NEW_VERSION=$(poetry version -s)
+# Get new version (in case it was calculated)
+NEW_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
 echo -e "${GREEN}New version: ${NEW_VERSION}${NC}"
 
 # Reinstall to sync the installed metadata with the new version
 echo -e "${YELLOW}Syncing installed package version...${NC}"
-poetry install
+uv sync
 
 # Confirm with user
 echo -e "${YELLOW}This will:${NC}"
@@ -74,7 +108,7 @@ echo
 
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}Aborted. Reverting version change...${NC}"
-    poetry version "$CURRENT_VERSION"
+    update_version "$CURRENT_VERSION"
     exit 0
 fi
 
