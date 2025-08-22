@@ -119,6 +119,16 @@ print(f"Total binaries: {len(a.binaries)}")
 
 pyz = PYZ(a.pure)
 
+# Determine icon and platform settings
+icon_path = None
+use_strip = True  # Default to strip enabled
+
+if sys.platform == 'darwin':
+    icon_path = 'src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns'
+elif sys.platform in ['win32', 'cygwin']:
+    icon_path = 'src/universal_dj_usb/assets/icons/icono.ico'
+    use_strip = False  # Strip not available on Windows
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -128,7 +138,7 @@ exe = EXE(
     name='Universal DJ USB',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # Strip debug symbols
+    strip=use_strip, # Platform-aware strip setting
     upx=False,   # Disable UPX (causes issues on some systems)
     upx_exclude=[],
     console=False,
@@ -137,7 +147,10 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='src/universal_dj_usb/assets/icons/icono.ico',  # Windows icon
+    icon=icon_path,
+    # Windows-specific options to fix DLL loading issues
+    onedir=False,  # Force onefile mode
+    contents_directory='.',  # Keep contents in root
 )
 
 # Remove COLLECT for onefile build - we don't need it

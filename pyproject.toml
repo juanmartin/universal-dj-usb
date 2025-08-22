@@ -40,7 +40,7 @@ dev = [
     "isort>=5.0.0,<6",
     "flake8>=6.0.0,<7",
     "mypy>=1.0.0,<2",
-    "pyinstaller>=6.0.0,<7",
+    "pyinstaller>=6.15.0,<7",
     "tomli-w>=1.0.0,<2",
     "packaging>=21.0,<25",
 ]

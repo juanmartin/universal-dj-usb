@@ -76,7 +76,27 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      # Build using the appropriate build script
+      # Windows-specific fixes for PyInstaller DLL issues
+      - name: Fix Windows PyInstaller dependencies
+        if: runner.os == 'Windows'
+        run: |
+          # Install additional Windows dependencies that may help
+          uv add pywin32
+          
+          # Install Visual C++ Redistributable dependencies
+          # This helps with DLL loading issues
+          choco install vcredist2019 -y
+          
+          # Clear any existing PyInstaller cache
+          if (Test-Path "$env:LOCALAPPDATA\pyinstaller") {
+            Remove-Item -Recurse -Force "$env:LOCALAPPDATA\pyinstaller"
+          }
+          
+          # Verify Python installation
+          Write-Host "Python version and path:"
+          & uv run python --version
+          & uv run python -c "import sys; print(f'Python executable: {sys.executable}')"
+          & uv run python -c "import PyInstaller; print(f'PyInstaller: {PyInstaller.__version__}')"      # Build using the appropriate build script
       - name: Build executables (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -108,6 +128,15 @@ jobs:
           }
           $env:BUILD_ID = $BUILD_ID
 
+          # Set additional PyInstaller environment variables for Windows
+          $env:PYINSTALLER_COMPILE_BOOTLOADER = "1"
+          $env:PYINSTALLER_CONFIG_DIR = "$env:TEMP\pyinstaller-config"
+
+          # Ensure clean build environment
+          if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
+          if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+
+          # Run build with verbose output for debugging
           .\build.ps1 -Both -SkipTests
 
       # Check build results and sizes
@@ -136,7 +165,51 @@ jobs:
             Write-Host "GUI size: $($size.ToString('F1')) MB"
           }
 
-      # Prepare artifacts with consistent naming
+      # Test Windows executables to catch DLL loading issues early
+      - name: Test Windows executables
+        if: runner.os == 'Windows'
+        run: |
+          Write-Host "Testing Windows executables..."
+
+          # Test CLI executable
+          if (Test-Path "dist/udj.exe") {
+            Write-Host "Testing CLI executable..."
+            try {
+              & "dist/udj.exe" --help | Select-Object -First 5
+              Write-Host "✓ CLI executable works correctly"
+            } catch {
+              Write-Error "✗ CLI executable failed: $($_.Exception.Message)"
+              throw
+            }
+          }
+
+          # Test GUI executable (just check if it loads without DLL errors)
+          if (Test-Path "dist/Universal DJ USB.exe") {
+            Write-Host "Testing GUI executable..."
+            try {
+              # Start the GUI app and kill it quickly - this tests DLL loading
+              $process = Start-Process -FilePath "dist/Universal DJ USB.exe" -PassThru
+              Start-Sleep -Seconds 3  # Give it time to load and show DLL errors if any
+              
+              if (!$process.HasExited) {
+                # App started successfully (no immediate DLL error)
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                Write-Host "✓ GUI executable loads without DLL errors"
+              } else {
+                # App exited immediately, might be a DLL error
+                $exitCode = $process.ExitCode
+                if ($exitCode -ne 0) {
+                  Write-Error "✗ GUI executable failed with exit code: $exitCode"
+                  throw
+                } else {
+                  Write-Host "✓ GUI executable loaded and exited cleanly"
+                }
+              }
+            } catch {
+              Write-Error "✗ GUI executable failed: $($_.Exception.Message)"
+              throw
+            }
+          }      # Prepare artifacts with consistent naming
       - name: Prepare artifacts (Unix)
         if: runner.os != 'Windows'
         id: prepare

@@ -74,6 +74,9 @@ elif sys.platform in ['win32', 'cygwin']:
     icon_path = 'src/universal_dj_usb/assets/icons/icono.ico'
 # Linux doesn't typically use icons in CLI executables
 
+# Platform-specific settings
+use_strip = sys.platform not in ['win32', 'cygwin']  # Strip not available on Windows
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -83,7 +86,7 @@ exe = EXE(
     name='udj',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,   # Strip debug symbols
+    strip=use_strip,  # Only strip on platforms where it's available
     upx=False,    # Disable UPX (can cause issues)
     upx_exclude=[],
     runtime_tmpdir=None,
@@ -94,4 +97,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=icon_path,
+    # Windows-specific options to fix DLL loading issues
+    onedir=False,  # Force onefile mode
+    contents_directory='.',  # Keep contents in root
 )
