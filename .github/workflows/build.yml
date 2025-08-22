@@ -284,21 +284,19 @@ jobs:
             $BUILD_ID = "$VERSION-dev"
           }
 
-          # Create consistent naming
+          # Create consistent naming - artifact folder has version/arch, executables have simple names
           $ARTIFACT_FOLDER = "Universal-DJ-USB-$BUILD_ID-${{ matrix.target }}"
-          $CLI_NAME = "udj-$BUILD_ID-${{ matrix.target }}.exe"
-          $GUI_NAME = "Universal-DJ-USB-$BUILD_ID-${{ matrix.target }}.exe"
 
           # Export for next step
           Add-Content -Path $env:GITHUB_OUTPUT -Value "artifact_folder=$ARTIFACT_FOLDER"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "build_id=$BUILD_ID"
 
-          # Windows artifacts - copy executables with proper naming
+          # Windows artifacts - copy executables with simple names inside versioned folder
           if (Test-Path "dist/udj.exe") {
-            Copy-Item "dist/udj.exe" "artifacts/$CLI_NAME"
+            Copy-Item "dist/udj.exe" "artifacts/udj.exe"
           }
           if (Test-Path "dist/Universal DJ USB.exe") {
-            Copy-Item "dist/Universal DJ USB.exe" "artifacts/$GUI_NAME"
+            Copy-Item "dist/Universal DJ USB.exe" "artifacts/Universal DJ USB.exe"
           }
 
           # Show what we created

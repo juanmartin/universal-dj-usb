@@ -81,8 +81,9 @@ use_onefile = sys.platform in ['win32', 'cygwin']    # Only use onefile on Windo
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries if use_onefile else [],   # Only include binaries for onefile build
-    a.datas if use_onefile else [],      # Only include data files for onefile build
+    a.binaries if use_onefile else [],    # Include everything for onefile, exclude for onedir
+    a.zipfiles if use_onefile else [],
+    a.datas if use_onefile else [],
     [],
     name='udj',
     debug=False,

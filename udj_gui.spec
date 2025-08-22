@@ -135,8 +135,9 @@ elif sys.platform in ['win32', 'cygwin']:
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries if use_onefile else [],   # Only include binaries for onefile build
-    a.datas if use_onefile else [],      # Only include data files for onefile build
+    a.binaries if use_onefile else [],    # Include everything for onefile, exclude for onedir
+    a.zipfiles if use_onefile else [],
+    a.datas if use_onefile else [],
     [],
     name='Universal DJ USB',
     debug=False,
@@ -159,6 +160,7 @@ if not use_onefile:  # Only create COLLECT for onedir builds
     coll = COLLECT(
         exe,
         a.binaries,
+        a.zipfiles,
         a.datas,
         strip=use_strip,  # Platform-aware strip setting
         upx=False,   # Disable UPX
