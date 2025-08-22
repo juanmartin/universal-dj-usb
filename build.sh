@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Build configuration
-VERSION=$(poetry version -s)
+VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
 PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
@@ -59,19 +59,19 @@ clean_build() {
 install_dependencies() {
     echo -e "${YELLOW}Installing dependencies...${NC}"
     # Install runtime dependencies and build tools
-    poetry install --with dev
+    uv sync --all-extras
     echo "✓ Dependencies installed"
     echo ""
 }
 
 build_gui() {
     echo -e "${YELLOW}Building GUI application...${NC}"
-    poetry run pyinstaller udj_gui.spec --clean --noconfirm
+    uv run pyinstaller udj_gui.spec --clean --noconfirm
     
     # Cleanup Qt frameworks to reduce size
     if [[ -f "scripts/cleanup_qt_frameworks.py" ]]; then
         echo -e "${YELLOW}Cleaning up Qt frameworks...${NC}"
-        python3 scripts/cleanup_qt_frameworks.py "Universal DJ USB"
+        uv run python scripts/cleanup_qt_frameworks.py "Universal DJ USB"
     fi
     
     if [[ "$PLATFORM" == "darwin" ]]; then
@@ -84,7 +84,7 @@ build_gui() {
 
 build_cli() {
     echo -e "${YELLOW}Building CLI application...${NC}"
-    poetry run pyinstaller udj_cli.spec --clean --noconfirm
+    uv run pyinstaller udj_cli.spec --clean --noconfirm
     
     if [[ "$PLATFORM" == "darwin" ]]; then
         echo -e "${YELLOW}Creating CLI archive...${NC}"
@@ -141,7 +141,7 @@ create_archive_cli() {
 
 run_tests() {
     echo -e "${YELLOW}Running tests...${NC}"
-    poetry run pytest --tb=short
+    uv run pytest --tb=short
     echo "✓ Tests passed"
     echo ""
 }

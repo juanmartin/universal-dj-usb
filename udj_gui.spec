@@ -52,7 +52,7 @@ other_excludes = [
     'PIL',
     'Pillow',
     
-    # Development tools (found in Poetry dependencies)
+    # Development tools
     'pytest',
     'pytest-cov',
     'coverage', 

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# Universal DJ USB - Release Script
-# Automates version bumping and tag creation
+# Universal DJ USB - Pure Shell Release Script
+# No Python execution - uses sed/awk for maximum security
 
 # Colors for output
 RED='\033[0;31m'
@@ -25,12 +25,105 @@ show_help() {
     echo "  $0 1.0.0     # Set to 1.0.0"
 }
 
+# Validate version format using shell pattern matching
+validate_version() {
+    local version="$1"
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+        echo -e "${RED}Error: Invalid version format: $version${NC}"
+        echo "Version must match: MAJOR.MINOR.PATCH[-PRERELEASE]"
+        exit 1
+    fi
+}
+
+# Extract version from pyproject.toml using sed
+get_current_version() {
+    sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1
+}
+
+# Update version in pyproject.toml using sed
+update_version() {
+    local new_version="$1"
+    validate_version "$new_version"
+    
+    # Create backup
+    cp pyproject.toml pyproject.toml.bak
+    
+    # Update version line
+    sed -i.tmp "s/^version = \".*\"$/version = \"$new_version\"/" pyproject.toml
+    rm -f pyproject.toml.tmp
+    
+    # Verify the change worked
+    local updated_version
+    updated_version=$(get_current_version)
+    if [[ "$updated_version" != "$new_version" ]]; then
+        echo -e "${RED}Error: Version update failed${NC}"
+        mv pyproject.toml.bak pyproject.toml
+        exit 1
+    fi
+    
+    rm -f pyproject.toml.bak
+    echo -e "${GREEN}Version updated to: $new_version${NC}"
+}
+
+# Bump version using shell arithmetic
+bump_version() {
+    local bump_type="$1"
+    local current_version="$2"
+    
+    # Extract major.minor.patch
+    local version_core
+    local prerelease=""
+    
+    if [[ "$current_version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)(-.*)?$ ]]; then
+        version_core="${BASH_REMATCH[1]}"
+        prerelease="${BASH_REMATCH[2]:-}"
+    else
+        echo -e "${RED}Error: Cannot parse version: $current_version${NC}"
+        exit 1
+    fi
+    
+    IFS='.' read -ra VERSION_PARTS <<< "$version_core"
+    local major="${VERSION_PARTS[0]}"
+    local minor="${VERSION_PARTS[1]}"
+    local patch="${VERSION_PARTS[2]}"
+    
+    case "$bump_type" in
+        "patch")
+            patch=$((patch + 1))
+            ;;
+        "minor")
+            minor=$((minor + 1))
+            patch=0
+            ;;
+        "major")
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+        *)
+            echo -e "${RED}Error: Invalid bump type: $bump_type${NC}"
+            exit 1
+            ;;
+    esac
+    
+    echo "$major.$minor.$patch"
+}
+
 if [[ $# -eq 0 ]] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
     show_help
     exit 0
 fi
 
 VERSION_ARG="$1"
+
+# Validate input
+case "$VERSION_ARG" in
+    "patch"|"minor"|"major")
+        ;;
+    *)
+        validate_version "$VERSION_ARG"
+        ;;
+esac
 
 # Check if we're on a clean git state
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -39,28 +132,37 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 # Get current version
-CURRENT_VERSION=$(poetry version -s)
+CURRENT_VERSION=$(get_current_version)
+if [[ -z "$CURRENT_VERSION" ]]; then
+    echo -e "${RED}Error: Could not read current version from pyproject.toml${NC}"
+    exit 1
+fi
 echo -e "${YELLOW}Current version: ${CURRENT_VERSION}${NC}"
 
-# Bump version
+# Calculate new version
 case "$VERSION_ARG" in
     "patch"|"minor"|"major")
         echo -e "${YELLOW}Bumping ${VERSION_ARG} version...${NC}"
-        poetry version "$VERSION_ARG"
+        NEW_VERSION=$(bump_version "$VERSION_ARG" "$CURRENT_VERSION")
         ;;
     *)
         echo -e "${YELLOW}Setting version to ${VERSION_ARG}...${NC}"
-        poetry version "$VERSION_ARG"
+        NEW_VERSION="$VERSION_ARG"
         ;;
 esac
 
-# Get new version
-NEW_VERSION=$(poetry version -s)
 echo -e "${GREEN}New version: ${NEW_VERSION}${NC}"
 
-# Reinstall to sync the installed metadata with the new version
+# Update version in pyproject.toml
+update_version "$NEW_VERSION"
+
+# Sync environment
 echo -e "${YELLOW}Syncing installed package version...${NC}"
-poetry install
+if command -v uv >/dev/null 2>&1; then
+    uv sync
+else
+    echo "uv not found - skipping environment sync"
+fi
 
 # Confirm with user
 echo -e "${YELLOW}This will:${NC}"
@@ -74,7 +176,7 @@ echo
 
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}Aborted. Reverting version change...${NC}"
-    poetry version "$CURRENT_VERSION"
+    update_version "$CURRENT_VERSION"
     exit 0
 fi
 
@@ -88,7 +190,7 @@ echo -e "${YELLOW}Creating tag v${NEW_VERSION}...${NC}"
 git tag "v${NEW_VERSION}"
 
 echo -e "${YELLOW}Pushing to origin...${NC}"
-git push origin $(git branch --show-current) --tags
+git push origin "$(git branch --show-current)" --tags
 
 echo -e "${GREEN}✓ Release v${NEW_VERSION} created successfully!${NC}"
 echo -e "${GREEN}✓ Build pipeline will start automatically.${NC}"

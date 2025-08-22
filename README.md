@@ -164,25 +164,25 @@ git clone https://github.com/juanmartin/universal-dj-usb.git
 cd universal-dj-usb
 
 # Setup python version
-pyenv local 3.11.0
+pyenv local 3.11.13
 
 # Install development dependencies
-poetry install --with dev
+uv sync --dev
 
 # Run tests
-poetry run pytest
+uv run pytest
 
 # Run linting and formatting
-poetry run black src/
-poetry run isort src/
-poetry run flake8 src/
+uv run black src/
+uv run isort src/
+uv run flake8 src/
 ```
 
 ### Running Tests
 
 ```bash
-poetry run pytest
-poetry run pytest --cov=src/universal_dj_usb
+uv run pytest
+uv run pytest --cov=src/universal_dj_usb
 ```
 
 ## Contributing
