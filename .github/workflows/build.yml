@@ -82,16 +82,16 @@ jobs:
         run: |
           # Install additional Windows dependencies that may help
           uv add pywin32
-          
+
           # Install Visual C++ Redistributable dependencies
           # This helps with DLL loading issues
           choco install vcredist2019 -y
-          
+
           # Clear any existing PyInstaller cache
           if (Test-Path "$env:LOCALAPPDATA\pyinstaller") {
             Remove-Item -Recurse -Force "$env:LOCALAPPDATA\pyinstaller"
           }
-          
+
           # Verify Python installation
           Write-Host "Python version and path:"
           & uv run python --version

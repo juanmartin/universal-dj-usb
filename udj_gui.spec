@@ -122,18 +122,21 @@ pyz = PYZ(a.pure)
 # Determine icon and platform settings
 icon_path = None
 use_strip = True  # Default to strip enabled
+use_onefile = False  # Default to onedir mode (better for macOS app bundles)
 
 if sys.platform == 'darwin':
     icon_path = 'src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns'
+    use_onefile = False  # Use onedir for proper macOS app bundle structure
 elif sys.platform in ['win32', 'cygwin']:
     icon_path = 'src/universal_dj_usb/assets/icons/icono.ico'
     use_strip = False  # Strip not available on Windows
+    use_onefile = True   # Use onefile for Windows portable executable
 
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,  # Include binaries for onefile build
-    a.datas,     # Include data files for onefile build
+    a.binaries if use_onefile else [],   # Only include binaries for onefile build
+    a.datas if use_onefile else [],      # Only include data files for onefile build
     [],
     name='Universal DJ USB',
     debug=False,
@@ -148,26 +151,25 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=icon_path,
-    # Windows-specific options to fix DLL loading issues
-    onedir=False,  # Force onefile mode
-    contents_directory='.',  # Keep contents in root
 )
 
-# Remove COLLECT for onefile build - we don't need it
-# coll = COLLECT(
-#     exe,
-#     a.binaries,
-#     a.datas,
-#     strip=True,  # Strip debug symbols from libraries
-#     upx=False,   # Disable UPX
-#     upx_exclude=[],
-#     name='Universal DJ USB',
-# )
+# Create COLLECT for onedir builds (macOS app bundles)
+coll = None
+if not use_onefile:  # Only create COLLECT for onedir builds
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=use_strip,  # Platform-aware strip setting
+        upx=False,   # Disable UPX
+        upx_exclude=[],
+        name='Universal DJ USB',
+    )
 
 # macOS bundle (only used on macOS)
 if sys.platform == 'darwin':
     app = BUNDLE(
-        exe,  # Changed from coll to exe for onefile
+        coll,  # Use COLLECT for proper app bundle structure
         name='Universal DJ USB.app',
         icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
         bundle_identifier='art.juanm.udj',

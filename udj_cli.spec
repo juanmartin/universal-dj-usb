@@ -76,12 +76,13 @@ elif sys.platform in ['win32', 'cygwin']:
 
 # Platform-specific settings
 use_strip = sys.platform not in ['win32', 'cygwin']  # Strip not available on Windows
+use_onefile = sys.platform in ['win32', 'cygwin']    # Only use onefile on Windows for portability
 
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
+    a.binaries if use_onefile else [],   # Only include binaries for onefile build
+    a.datas if use_onefile else [],      # Only include data files for onefile build
     [],
     name='udj',
     debug=False,
@@ -97,7 +98,16 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=icon_path,
-    # Windows-specific options to fix DLL loading issues
-    onedir=False,  # Force onefile mode
-    contents_directory='.',  # Keep contents in root
 )
+
+# Create COLLECT for onedir builds (macOS/Linux)
+if not use_onefile:  # Only create COLLECT for onedir builds
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=use_strip,  # Platform-aware strip setting
+        upx=False,   # Disable UPX
+        upx_exclude=[],
+        name='udj',
+    )
