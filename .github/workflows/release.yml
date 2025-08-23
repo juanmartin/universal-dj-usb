@@ -23,7 +23,8 @@ jobs:
     # Only run for successful builds on tags, or manual trigger
     if: |
       (github.event.workflow_run.conclusion == 'success' && 
-       startsWith(github.event.workflow_run.head_branch, 'refs/tags/')) ||
+       (startsWith(github.event.workflow_run.head_branch, 'refs/tags/') || 
+        startsWith(github.event.workflow_run.head_branch, 'v'))) ||
       github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +39,10 @@ jobs:
             TAG_REF="${{ github.event.workflow_run.head_branch }}"
             if [[ "$TAG_REF" == refs/tags/* ]]; then
               echo "tag=${TAG_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            elif [[ "$TAG_REF" == v* ]]; then
+              echo "tag=${TAG_REF}" >> $GITHUB_OUTPUT
             else
-              echo "Error: Not triggered by a tag push"
+              echo "Error: Not triggered by a tag push (got: $TAG_REF)"
               exit 1
             fi
           fi
@@ -48,7 +51,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build.yml
-          commit: ${{ github.sha }}
+          run_id: ${{ github.event.workflow_run.id }}
           path: artifacts
 
       - name: Organize release files
