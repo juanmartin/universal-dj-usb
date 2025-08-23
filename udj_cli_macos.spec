@@ -64,11 +64,13 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
-# macOS onedir executable (no binaries/datas in EXE for onedir builds)
+# macOS onefile executable (includes all binaries like main branch)
 exe = EXE(
     pyz,
     a.scripts,
-    [],  # No binaries in EXE for onedir builds
+    a.binaries,
+    a.datas,
+    [],
     name='udj',
     debug=False,
     bootloader_ignore_signals=False,
@@ -83,15 +85,4 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
-)
-
-# Create COLLECT for onedir build
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=True,
-    upx=False,
-    upx_exclude=[],
-    name='udj',
 )

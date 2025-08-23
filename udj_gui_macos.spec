@@ -117,11 +117,12 @@ print(f"Total binaries: {len(a.binaries)}")
 
 pyz = PYZ(a.pure)
 
-# macOS onedir executable (no binaries/datas in EXE for onedir builds)
+# macOS onedir executable (exclude binaries for proper COLLECT structure)
 exe = EXE(
     pyz,
     a.scripts,
-    [],  # No binaries in EXE for onedir builds
+    [],
+    exclude_binaries=True,
     name='Universal DJ USB',
     debug=False,
     bootloader_ignore_signals=False,
