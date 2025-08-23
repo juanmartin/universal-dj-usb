@@ -17,7 +17,7 @@ $YELLOW = "Yellow"
 
 # Build configuration
 try {
-    $VERSION = & uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['poetry']['version'])" 2>$null
+    $VERSION = & uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])" 2>$null
     if ($LASTEXITCODE -ne 0) {
         # Fallback method
         $VERSION = (Get-Content pyproject.toml | Select-String 'version = "(.+)"').Matches[0].Groups[1].Value
