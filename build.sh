@@ -66,7 +66,7 @@ install_dependencies() {
 
 build_gui() {
     echo -e "${YELLOW}Building GUI application...${NC}"
-    uv run pyinstaller udj_gui.spec --clean --noconfirm
+    uv run pyinstaller udj_gui_macos.spec --clean --noconfirm
     
     # Cleanup Qt frameworks to reduce size
     if [[ -f "scripts/cleanup_qt_frameworks.py" ]]; then
@@ -84,7 +84,7 @@ build_gui() {
 
 build_cli() {
     echo -e "${YELLOW}Building CLI application...${NC}"
-    uv run pyinstaller udj_cli.spec --clean --noconfirm
+    uv run pyinstaller udj_cli_macos.spec --clean --noconfirm
     
     if [[ "$PLATFORM" == "darwin" ]]; then
         echo -e "${YELLOW}Creating CLI archive...${NC}"

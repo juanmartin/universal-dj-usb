@@ -78,12 +78,12 @@ function Build-GUI {
     Write-Host "Building GUI application..." -ForegroundColor $YELLOW
     
     # Check if spec file exists
-    if (-not (Test-Path "udj_gui.spec")) {
-        Write-Error "udj_gui.spec not found"
+    if (-not (Test-Path "udj_gui_windows.spec")) {
+        Write-Error "udj_gui_windows.spec not found"
         exit 1
     }
     
-    & uv run pyinstaller udj_gui.spec --clean --noconfirm
+    & uv run pyinstaller udj_gui_windows.spec --clean --noconfirm
     if ($LASTEXITCODE -ne 0) {
         Write-Error "GUI build failed"
         exit 1
@@ -105,12 +105,12 @@ function Build-CLI {
     Write-Host "Building CLI application..." -ForegroundColor $YELLOW
     
     # Check if spec file exists
-    if (-not (Test-Path "udj_cli.spec")) {
-        Write-Error "udj_cli.spec not found"
+    if (-not (Test-Path "udj_cli_windows.spec")) {
+        Write-Error "udj_cli_windows.spec not found"
         exit 1
     }
     
-    & uv run pyinstaller udj_cli.spec --clean --noconfirm
+    & uv run pyinstaller udj_cli_windows.spec --clean --noconfirm
     if ($LASTEXITCODE -ne 0) {
         Write-Error "CLI build failed"
         exit 1
