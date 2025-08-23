@@ -156,7 +156,7 @@ echo -e "${GREEN}New version: ${NEW_VERSION}${NC}"
 # Update version in pyproject.toml
 update_version "$NEW_VERSION"
 
-# Sync environment
+# Sync environment BEFORE committing so uv.lock is included
 echo -e "${YELLOW}Syncing installed package version...${NC}"
 if command -v uv >/dev/null 2>&1; then
     uv sync
@@ -166,7 +166,7 @@ fi
 
 # Confirm with user
 echo -e "${YELLOW}This will:${NC}"
-echo "  1. Commit the version change"
+echo "  1. Commit the version change and updated uv.lock"
 echo "  2. Create tag v${NEW_VERSION}"
 echo "  3. Push to origin with tags"
 echo "  4. Trigger the build pipeline"
@@ -177,12 +177,19 @@ echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}Aborted. Reverting version change...${NC}"
     update_version "$CURRENT_VERSION"
+    # Also revert uv.lock if it exists
+    if command -v uv >/dev/null 2>&1; then
+        uv sync  # Restore original uv.lock
+    fi
     exit 0
 fi
 
-# Commit version bump
+# Commit version bump (including uv.lock)
 echo -e "${YELLOW}Committing version bump...${NC}"
 git add pyproject.toml
+if [[ -f "uv.lock" ]]; then
+    git add uv.lock
+fi
 git commit -m "Bump version to ${NEW_VERSION}"
 
 # Create and push tag
