@@ -5,6 +5,7 @@ from xml.dom import minidom
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+import platform
 
 from .base import BaseGenerator
 from ..models import Playlist, Track, CuePoint, ConversionResult
@@ -105,7 +106,14 @@ class NMLGenerator(BaseGenerator):
             # Extract volume name from USB path
             volume_name = ""
             if usb_path:
-                volume_name = usb_path.name
+                if platform.system() == "Windows":
+                    # On Windows, use the drive letter (e.g., "D:")
+                    backslash = '\\'
+                    drive_anchor = usb_path.anchor.rstrip(backslash)
+                    volume_name = drive_anchor  # e.g., "D:"
+                else:
+                    # On macOS/Linux, use the volume name
+                    volume_name = usb_path.name
 
             # Create NML structure
             nml_root = ET.Element("NML", VERSION="19")
@@ -274,7 +282,6 @@ class NMLGenerator(BaseGenerator):
             DIR=self._get_directory_path(traktor_path),
             FILE=track.filename,
             VOLUME=volume_name,
-            VOLUMEID=volume_name,
         )
 
         # Album
@@ -403,28 +410,45 @@ class NMLGenerator(BaseGenerator):
             else:
                 track_path = track_path.resolve()
 
-        # Extract volume name and path components
-        path_parts = track_path.parts
-        if len(path_parts) >= 3 and path_parts[1] == "Volumes":
-            volume_name = path_parts[2]
-            # Get the path relative to the volume
-            relative_parts = path_parts[3:]  # Skip /, Volumes, volume_name
-            if relative_parts:
-                relative_path = "/:".join(relative_parts)
-                return f"{volume_name}/:{relative_path}"
-            else:
-                return volume_name
+        # Platform-specific handling
+        if platform.system() == "Windows":
+            # On Windows, extract the drive letter and format the path
+            path_parts = track_path.parts
+            if len(path_parts) >= 1:
+                # Extract drive letter (e.g., 'C:')
+                backslash = '\\'
+                drive_letter = path_parts[0].rstrip(backslash)  # e.g., 'D:'
+                # Get remaining path parts
+                remaining_parts = path_parts[1:]  # Skip the drive letter
+                if remaining_parts:
+                    # Join with /: separator for Traktor format
+                    relative_path = "/:".join(remaining_parts)
+                    return f"{drive_letter}/:{relative_path}"
+                else:
+                    return drive_letter
         else:
-            # Fallback: if we have a USB path, use its name as volume
-            if usb_path:
-                volume_name = usb_path.name
-                # Convert the track path to relative path format
-                file_path_str = str(track_path).replace("\\", "/")
-                if file_path_str.startswith("/"):
-                    file_path_str = file_path_str[1:]  # Remove leading /
-                relative_path = file_path_str.replace("/", "/:")
-                return f"{volume_name}/:{relative_path}"
+            # macOS/Linux handling (existing logic)
+            path_parts = track_path.parts
+            if len(path_parts) >= 3 and path_parts[1] == "Volumes":
+                volume_name = path_parts[2]
+                # Get the path relative to the volume
+                relative_parts = path_parts[3:]  # Skip /, Volumes, volume_name
+                if relative_parts:
+                    relative_path = "/:".join(relative_parts)
+                    return f"{volume_name}/:{relative_path}"
+                else:
+                    return volume_name
             else:
-                # Last resort fallback
-                file_path_str = str(track_path).replace("\\", "/")
-                return file_path_str
+                # Fallback: if we have a USB path, use its name as volume
+                if usb_path:
+                    volume_name = usb_path.name
+                    # Convert the track path to relative path format
+                    file_path_str = str(track_path).replace("\\", "/")
+                    if file_path_str.startswith("/"):
+                        file_path_str = file_path_str[1:]  # Remove leading /
+                    relative_path = file_path_str.replace("/", "/:")
+                    return f"/{volume_name}/:{relative_path}"
+                else:
+                    # Last resort fallback
+                    file_path_str = str(track_path).replace("\\", "/")
+                    return f"/{file_path_str}"

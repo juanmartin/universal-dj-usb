@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-Optimized PyInstaller spec file for Universal DJ USB GUI.
-This file contains all build customizations for size optimization.
+PyInstaller spec file for Universal DJ USB GUI - Windows
+Optimized for Windows portable executable (onefile)
 """
 
 # Qt modules to exclude - these are not used by our GUI
@@ -73,21 +73,21 @@ other_excludes = [
     'wheel',
     'tox',
     'virtualenv',
-    'pyinstaller-hooks-contrib',  # PyInstaller dev tools
-    'importlib-metadata',         # Dependency scanning
-    'zipp',                       # Archive handling
-    'packaging',                  # Python packaging tools
-    'pathspec',                   # File path matching (used by black/mypy)
-    'platformdirs',               # Platform directories (used by black)
-    'tomli',                      # TOML parsing (used by black/mypy)
-    'typing-extensions',          # Type hints (might be needed - test carefully)
-    'colorama',                   # Terminal colors (used by dev tools)
-    'exceptiongroup',             # Exception handling (pytest)
-    'iniconfig',                  # INI config parsing (pytest)
-    'pluggy',                     # Plugin system (pytest)
-    'markdown-it-py',             # Markdown parsing (rich dependency)
-    'mdurl',                      # Markdown URL handling
-    'pygments',                   # Syntax highlighting (rich dependency)
+    'pyinstaller-hooks-contrib',
+    'importlib-metadata',
+    'zipp',
+    'packaging',
+    'pathspec',
+    'platformdirs',
+    'tomli',
+    'typing-extensions',
+    'colorama',
+    'exceptiongroup',
+    'iniconfig',
+    'pluggy',
+    'markdown-it-py',
+    'mdurl',
+    'pygments',
     
     # System modules we don't need
     '_bootlocale',
@@ -103,51 +103,38 @@ a = Analysis(
     ['udj_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[],  # No extra data files needed - everything is compiled into the executable
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=all_excludes,
     noarchive=False,
-    optimize=2,  # Maximum bytecode optimization
+    optimize=2,
 )
 
 print(f"Total binaries: {len(a.binaries)}")
 
 pyz = PYZ(a.pure)
 
+# Windows onefile executable
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='Universal DJ USB',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,  # Strip debug symbols
-    upx=False,   # Disable UPX (causes issues on macOS)
+    strip=False,  # Strip not available on Windows
+    upx=False,
+    upx_exclude=[],
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=True,  # Strip debug symbols from libraries
-    upx=False,   # Disable UPX
-    upx_exclude=[],
-    name='Universal DJ USB',
-)
-
-app = BUNDLE(
-    coll,
-    name='Universal DJ USB.app',
-    icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
-    bundle_identifier='art.juanm.udj',
+    icon='src/universal_dj_usb/assets/icons/icono.ico',
 )

@@ -55,21 +55,14 @@ jobs:
         run: |
           mkdir -p release-files
 
-          # Copy macOS Intel files (updated artifact names)
-          if [ -d "artifacts/Universal-DJ-USB-macos-x64" ]; then
-            echo "Processing macOS Intel builds..."
-            cp artifacts/Universal-DJ-USB-macos-x64/*.dmg release-files/ 2>/dev/null || true
-            cp artifacts/Universal-DJ-USB-macos-x64/*.tar.gz release-files/ 2>/dev/null || true
-            cp artifacts/Universal-DJ-USB-macos-x64/udj-* release-files/ 2>/dev/null || true
-          fi
-
-          # Copy macOS ARM64 files (updated artifact names)
-          if [ -d "artifacts/Universal-DJ-USB-macos-arm64" ]; then
-            echo "Processing macOS ARM64 builds..."
-            cp artifacts/Universal-DJ-USB-macos-arm64/*.dmg release-files/ 2>/dev/null || true
-            cp artifacts/Universal-DJ-USB-macos-arm64/*.tar.gz release-files/ 2>/dev/null || true
-            cp artifacts/Universal-DJ-USB-macos-arm64/udj-* release-files/ 2>/dev/null || true
-          fi
+          # Process all artifact directories
+          for artifact_dir in artifacts/Universal-DJ-USB-*; do
+            if [ -d "$artifact_dir" ]; then
+              echo "Processing $artifact_dir..."
+              # Copy all files from artifact directory
+              cp "$artifact_dir"/* release-files/ 2>/dev/null || true
+            fi
+          done
 
           echo "Release files prepared:"
           ls -la release-files/
@@ -91,6 +84,10 @@ jobs:
 
             ### Downloads
 
+            **Windows Applications:**
+            - **GUI Application**: `Universal-DJ-USB-*-windows-x64.exe` - Desktop GUI application
+            - **Command Line Tool**: `udj-*-windows-x64.exe` - CLI for Windows
+
             **macOS GUI Applications:**
             - **Intel (x64)**: `Universal-DJ-USB-*-macos-x64.dmg` - Optimized for Intel Macs
             - **Apple Silicon (ARM64)**: `Universal-DJ-USB-*-macos-arm64.dmg` - Optimized for M1/M2/M3 Macs
@@ -100,6 +97,11 @@ jobs:
             - **Apple Silicon (ARM64)**: `udj-*-macos-arm64` - CLI for M1/M2/M3 Macs
 
             ### Installation
+
+            **Windows:**
+            1. Download the appropriate `.exe` file
+            2. For GUI: Double-click `Universal-DJ-USB-*-windows-x64.exe` to run
+            3. For CLI: Run from Command Prompt or PowerShell
 
             **macOS GUI:**
             1. Download the appropriate `.dmg` file for your Mac architecture
@@ -127,23 +129,30 @@ jobs:
 
             **CLI Examples:**
             ```bash
-            # List available playlists
+            # macOS/Linux - List available playlists
             udj list-playlists /Volumes/YOUR_USB_DRIVE
 
-            # Convert all playlists to Traktor NML format
+            # Windows - List available playlists  
+            udj list-playlists D:\
+
+            # macOS/Linux - Convert all playlists to Traktor NML format
             udj convert /Volumes/YOUR_USB_DRIVE -f nml -o ~/TraktorPlaylists
 
-            # Convert specific playlists to M3U8 format  
-            udj convert /Volumes/YOUR_USB_DRIVE -p "House Music" -p "Techno Sets" -f m3u8
+            # Windows - Convert all playlists to Traktor NML format
+            udj convert D:\ -f nml -o C:\TraktorPlaylists
+
+            # Convert specific playlists to M3U8 format (cross-platform)
+            udj convert /path/to/usb -p "House Music" -p "Techno Sets" -f m3u8
 
             # Get detailed playlist information
-            udj info /Volumes/YOUR_USB_DRIVE "My Playlist Name"
+            udj info /path/to/usb "My Playlist Name"
             ```
 
-            ### Architecture Notes
+            ### Platform Notes
+            - **Windows**: The `.exe` files are portable and don't require installation
             - **Intel Macs**: Use the `x64` versions
             - **Apple Silicon Macs (M1/M2/M3/M4)**: Use the `arm64` versions
-            - If unsure of your architecture, run: `uname -m` in Terminal
+            - If unsure of your Mac architecture, run: `uname -m` in Terminal
 
             ---
 

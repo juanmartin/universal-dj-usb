@@ -582,7 +582,7 @@ dev = [
     { name = "isort", specifier = ">=5.0.0,<6" },
     { name = "mypy", specifier = ">=1.0.0,<2" },
     { name = "packaging", specifier = ">=21.0,<25" },
-    { name = "pyinstaller", specifier = ">=6.0.0,<7" },
+    { name = "pyinstaller", specifier = ">=6.15.0,<7" },
     { name = "pytest", specifier = ">=7.0.0,<8" },
     { name = "pytest-cov", specifier = ">=4.0.0,<5" },
     { name = "tomli-w", specifier = ">=1.0.0,<2" },

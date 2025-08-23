@@ -1,10 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-Optimized PyInstaller spec file for Universal DJ USB CLI.
-This file contains all build customizations for size optimization.
+PyInstaller spec file for Universal DJ USB CLI - Windows
+Optimized for Windows portable executable (onefile)
 """
-
-import sys
 
 # Libraries to exclude - CLI doesn't need GUI frameworks
 cli_excludes = [
@@ -54,26 +52,19 @@ a = Analysis(
     ['udj_cli.py'],
     pathex=[],
     binaries=[],
-    datas=[],  # No extra data files needed - everything is compiled into the executable
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=cli_excludes,
     noarchive=False,
-    optimize=2,  # Maximum bytecode optimization
+    optimize=2,
 )
 
 pyz = PYZ(a.pure)
 
-# Determine icon based on platform
-icon_path = None
-if sys.platform == 'darwin':
-    icon_path = 'src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns'
-elif sys.platform in ['win32', 'cygwin']:
-    icon_path = 'src/universal_dj_usb/assets/icons/icono.ico'
-# Linux doesn't typically use icons in CLI executables
-
+# Windows onefile executable
 exe = EXE(
     pyz,
     a.scripts,
@@ -83,8 +74,8 @@ exe = EXE(
     name='udj',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,   # Strip debug symbols
-    upx=False,    # Disable UPX (can cause issues)
+    strip=False,  # Strip not available on Windows
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,
@@ -93,5 +84,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=icon_path,
+    icon='src/universal_dj_usb/assets/icons/icono.ico',
 )

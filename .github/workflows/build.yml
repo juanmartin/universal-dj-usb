@@ -36,7 +36,7 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
-  # Build for macOS (both architectures)
+  # Build for multiple platforms
   build:
     needs: test
     strategy:
@@ -51,6 +51,10 @@ jobs:
           - os: macos-14
             target: macos-arm64
             arch: arm64
+          # Windows build
+          - os: windows-latest
+            target: windows-x64
+            arch: x64
 
     runs-on: ${{ matrix.os }}
 
@@ -72,8 +76,29 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      # Build using the build script (which handles its own dependency installation)
-      - name: Build executables
+      # Windows-specific fixes for PyInstaller DLL issues
+      - name: Fix Windows PyInstaller dependencies
+        if: runner.os == 'Windows'
+        run: |
+          # Install additional Windows dependencies that may help
+          uv add pywin32
+
+          # Install Visual C++ Redistributable dependencies
+          # This helps with DLL loading issues
+          choco install vcredist2019 -y
+
+          # Clear any existing PyInstaller cache
+          if (Test-Path "$env:LOCALAPPDATA\pyinstaller") {
+            Remove-Item -Recurse -Force "$env:LOCALAPPDATA\pyinstaller"
+          }
+
+          # Verify Python installation
+          Write-Host "Python version and path:"
+          & uv run python --version
+          & uv run python -c "import sys; print(f'Python executable: {sys.executable}')"
+          & uv run python -c "import PyInstaller; print(f'PyInstaller: {PyInstaller.__version__}')"      # Build using the appropriate build script
+      - name: Build executables (Unix)
+        if: runner.os != 'Windows'
         run: |
           # Calculate BUILD_ID for consistent naming
           VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
@@ -89,8 +114,34 @@ jobs:
           chmod +x build.sh
           ./build.sh --both --skip-tests
 
+      - name: Build executables (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Calculate BUILD_ID for consistent naming
+          $VERSION = & uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          if ("${{ github.ref }}" -like "refs/tags/*") {
+            $BUILD_ID = $VERSION
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            $BUILD_ID = "$VERSION-pr${{ github.event.number }}"
+          } else {
+            $BUILD_ID = "$VERSION-dev"
+          }
+          $env:BUILD_ID = $BUILD_ID
+
+          # Set additional PyInstaller environment variables for Windows
+          $env:PYINSTALLER_COMPILE_BOOTLOADER = "1"
+          $env:PYINSTALLER_CONFIG_DIR = "$env:TEMP\pyinstaller-config"
+
+          # Ensure clean build environment
+          if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
+          if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+
+          # Run build with verbose output for debugging
+          .\build.ps1 -Both -SkipTests
+
       # Check build results and sizes
-      - name: Check bundle sizes
+      - name: Check bundle sizes (Unix)
+        if: runner.os != 'Windows'
         run: |
           echo "=== Build Results for ${{ matrix.target }} ==="
           ls -la dist/ || echo "No dist directory"
@@ -99,8 +150,68 @@ jobs:
           [ -d "dist/${{ env.APP_NAME }}.app" ] && echo "GUI app size: $(du -sh "dist/${{ env.APP_NAME }}.app" | cut -f1)"
           [ -f dist/*.dmg ] && echo "DMG size: $(du -sh dist/*.dmg | cut -f1)"
 
-      # Prepare artifacts with consistent naming
-      - name: Prepare artifacts
+      - name: Check bundle sizes (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Write-Host "=== Build Results for ${{ matrix.target }} ==="
+          Get-ChildItem dist -ErrorAction SilentlyContinue | Format-Table -AutoSize
+
+          if (Test-Path "dist/udj.exe") {
+            $size = (Get-Item "dist/udj.exe").Length / 1MB
+            Write-Host "CLI size: $($size.ToString('F1')) MB"
+          }
+          if (Test-Path "dist/Universal DJ USB.exe") {
+            $size = (Get-Item "dist/Universal DJ USB.exe").Length / 1MB
+            Write-Host "GUI size: $($size.ToString('F1')) MB"
+          }
+
+      # Test Windows executables to catch DLL loading issues early
+      - name: Test Windows executables
+        if: runner.os == 'Windows'
+        run: |
+          Write-Host "Testing Windows executables..."
+
+          # Test CLI executable
+          if (Test-Path "dist/udj.exe") {
+            Write-Host "Testing CLI executable..."
+            try {
+              & "dist/udj.exe" --help | Select-Object -First 5
+              Write-Host "✓ CLI executable works correctly"
+            } catch {
+              Write-Error "✗ CLI executable failed: $($_.Exception.Message)"
+              throw
+            }
+          }
+
+          # Test GUI executable (just check if it loads without DLL errors)
+          if (Test-Path "dist/Universal DJ USB.exe") {
+            Write-Host "Testing GUI executable..."
+            try {
+              # Start the GUI app and kill it quickly - this tests DLL loading
+              $process = Start-Process -FilePath "dist/Universal DJ USB.exe" -PassThru
+              Start-Sleep -Seconds 3  # Give it time to load and show DLL errors if any
+              
+              if (!$process.HasExited) {
+                # App started successfully (no immediate DLL error)
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                Write-Host "✓ GUI executable loads without DLL errors"
+              } else {
+                # App exited immediately, might be a DLL error
+                $exitCode = $process.ExitCode
+                if ($exitCode -ne 0) {
+                  Write-Error "✗ GUI executable failed with exit code: $exitCode"
+                  throw
+                } else {
+                  Write-Host "✓ GUI executable loaded and exited cleanly"
+                }
+              }
+            } catch {
+              Write-Error "✗ GUI executable failed: $($_.Exception.Message)"
+              throw
+            }
+          }      # Prepare artifacts with consistent naming
+      - name: Prepare artifacts (Unix)
+        if: runner.os != 'Windows'
         id: prepare
         run: |
           mkdir -p artifacts
@@ -152,9 +263,49 @@ jobs:
           echo "Created artifacts:"
           ls -la artifacts/
 
+      - name: Prepare artifacts (Windows)
+        if: runner.os == 'Windows'
+        id: prepare_win
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force
+
+          # Get version from pyproject.toml
+          $VERSION = & uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+
+          # Determine build identifier based on trigger
+          if ("${{ github.ref }}" -like "refs/tags/*") {
+            # Tag builds: clean version (official release)
+            $BUILD_ID = $VERSION
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            # PR builds: add PR number
+            $BUILD_ID = "$VERSION-pr${{ github.event.number }}"
+          } else {
+            # Manual/push builds: add dev suffix
+            $BUILD_ID = "$VERSION-dev"
+          }
+
+          # Create consistent naming - artifact folder has version/arch, executables have simple names
+          $ARTIFACT_FOLDER = "Universal-DJ-USB-$BUILD_ID-${{ matrix.target }}"
+
+          # Export for next step
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "artifact_folder=$ARTIFACT_FOLDER"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "build_id=$BUILD_ID"
+
+          # Windows artifacts - copy executables with simple names inside versioned folder
+          if (Test-Path "dist/udj.exe") {
+            Copy-Item "dist/udj.exe" "artifacts/udj.exe"
+          }
+          if (Test-Path "dist/Universal DJ USB.exe") {
+            Copy-Item "dist/Universal DJ USB.exe" "artifacts/Universal DJ USB.exe"
+          }
+
+          # Show what we created
+          Write-Host "Created artifacts:"
+          Get-ChildItem artifacts | Format-Table -AutoSize
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.prepare.outputs.artifact_folder }}
+          name: ${{ steps.prepare.outputs.artifact_folder || steps.prepare_win.outputs.artifact_folder }}
           path: artifacts/
           retention-days: 30
