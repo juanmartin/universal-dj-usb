@@ -6,7 +6,7 @@ on:
       - "v*" # Only trigger when tags starting with 'v' are pushed
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   update_release_draft:
