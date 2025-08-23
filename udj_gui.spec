@@ -153,24 +153,41 @@ exe = EXE(
     icon=icon_path,
 )
 
-# Create COLLECT for onedir builds (macOS app bundles)
-coll = None
-if not use_onefile:  # Only create COLLECT for onedir builds
+# Platform-specific bundle creation
+if sys.platform == 'darwin':
+    # macOS: Create COLLECT first, then BUNDLE
     coll = COLLECT(
         exe,
         a.binaries,
         a.datas,
-        strip=use_strip,  # Platform-aware strip setting
-        upx=False,   # Disable UPX
+        strip=use_strip,
+        upx=False,
         upx_exclude=[],
         name='Universal DJ USB',
     )
-
-# macOS bundle (only used on macOS)
-if sys.platform == 'darwin':
+    
     app = BUNDLE(
-        coll,  # Use COLLECT for proper app bundle structure
+        coll,
         name='Universal DJ USB.app',
         icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
         bundle_identifier='art.juanm.udj',
+        info_plist={
+            'CFBundleShortVersionString': '0.1.0',
+            'CFBundleVersion': '0.1.0',
+            'CFBundleDisplayName': 'Universal DJ USB',
+        },
+    )
+elif sys.platform in ['win32', 'cygwin']:
+    # Windows: onefile build, no COLLECT needed
+    pass
+else:
+    # Linux: Create COLLECT for onedir build
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=use_strip,
+        upx=False,
+        upx_exclude=[],
+        name='Universal DJ USB',
     )
