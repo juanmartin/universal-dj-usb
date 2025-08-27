@@ -10,18 +10,21 @@ jobs:
   changelog_release:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history needed for changelog
 
-      - name: Install git-cliff
-        run: |
-          curl -sSL https://github.com/orhun/git-cliff/releases/download/v2.1.2/git-cliff-2.1.2-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv git-cliff /usr/local/bin/
-
-      - name: Generate CHANGELOG.md
-        run: git-cliff -c git-cliff.toml -o CHANGELOG.md
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
 
       - name: Commit and push CHANGELOG.md
         run: |
