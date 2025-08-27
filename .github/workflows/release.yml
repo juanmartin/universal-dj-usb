@@ -71,12 +71,13 @@ jobs:
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Authenticate gh CLI
+      - name: Authenticate gh CLI (use GH_TOKEN; clear GITHUB_TOKEN for this step)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ""
         run: |
-          # gh is preinstalled on ubuntu runners; authenticate using token
-          printf "%s" "${GITHUB_TOKEN}" | gh auth login --with-token
+          # gh will pick up GH_TOKEN automatically. quick status to validate auth.
+          gh auth status --hostname github.com || true
 
       - name: Resolve Build run id if not provided (manual dispatch)
         if: github.event_name == 'workflow_dispatch' && steps.vars.outputs.run_id == ''
@@ -120,6 +121,7 @@ jobs:
         env:
           RUN_ID: ${{ steps.vars.outputs.run_id || steps.resolve_run.outputs.run_id }}
         run: |
+          RUN_ID="${RUN_ID}"
           if [ -z "${RUN_ID}" ]; then
             echo "ERROR: No Build run id available to download artifacts from. Provide build_run_id as a workflow_dispatch input."
             exit 1
@@ -156,8 +158,8 @@ jobs:
       - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.inputs.tag || (github.event.workflow_run.head_branch) || github.ref_name || github.event.workflow_run.head_sha }}
-          name: Release ${{ github.event.inputs.tag || github.event.workflow_run.head_branch || github.ref_name || github.event.workflow_run.head_sha }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || github.event.workflow_run.head_sha }}
+          name: Release ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || github.event.workflow_run.head_sha }}
           body_path: CHANGELOG.md
           draft: true
           prerelease: ${{ contains(github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || '', '-') }}
