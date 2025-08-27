@@ -447,8 +447,9 @@ class NMLGenerator(BaseGenerator):
                     if file_path_str.startswith("/"):
                         file_path_str = file_path_str[1:]  # Remove leading /
                     relative_path = file_path_str.replace("/", "/:")
-                    return f"/{volume_name}/:{relative_path}"
+                    # Do not prefix with a leading slash; Traktor expects e.g. "VOLUME/:path/:to/:file"
+                    return f"{volume_name}/:{relative_path}"
                 else:
-                    # Last resort fallback
+                    # Last resort fallback - avoid leading slash
                     file_path_str = str(track_path).replace("\\", "/")
-                    return f"/{file_path_str}"
+                    return file_path_str.lstrip("/")
