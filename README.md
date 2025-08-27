@@ -38,13 +38,15 @@ There are two flavors for this tool: GUI app or CLI, both are portable 1-file ex
 
 1. Download the latest release from the [Releases](https://github.com/juanmartin/universal-dj-usb/releases/latest) page. Pick your OS and architecture.
 2. Run the executable (GUI) or follow the CLI instructions.
-3. Be free from vendor lock 👌
+3. Be (somehow) free from vendor lock 👌
 
 ## Usage (opinionated)
 
 I recommend you save the playlists in a folder inside your USB drive so that you take them with you!
 
 Because of OS reasons, paths might differ when using this tool in macOS vs Windows, so it's also wise to keep this (portable) app in your USB drive in case you need to quickly re-generate your playlists and start playing!
+
+This is not the case for NML! **Traktor playlists generated in macOS will work in Windows and vice versa :D**
 
 My usual workflow would be:
 
@@ -224,7 +226,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Motivation
 
-I found myself in the situation in which someone wants to play using my equipment (Traktor) and they bring me a rekordbox-ready USB drive, so they would not have their playlists displayed in Traktor. It even happens to me as I only keep a rekordbox-ready USB to play on CDJs at hand at all times. This tool allows you to export your USB drive for CDJs only (using rekordbox) but in case you get to play with Traktor (or possibly anything else coming soon!) at the afters, you are able to convert your playlists on the fly, avoiding having duplicated audio files and just referencing them from created playlists.
+Many times I have found myself in the situation in which someone wants to play using my equipment (Traktor) and they have a rekordbox-ready USB drive, so they would not have their playlists displayed in Traktor, only the `Contents/` folder impossible to play with. It even happens to me, as I usually only carry a rekordbox-ready USB to play with CDJs. But at friends' houses, some have Traktor or other systems.
+
+With this, you can easily convert your playlists on the fly, avoiding having duplicated audio files and just referencing them from existing rekordbox playlists. So you only sync once with rekordbox, then this translates that to other compatible playlists formats.
 
 ## How?
 

@@ -18,6 +18,7 @@
   - relative/absolute ??
 - [ ]  WEBSITE (optional)
 - [ ]  REMEMBER last output dir (optional)
+- [ ]  Verbose logging in GUI does not add any details
 - [x]  Better README
 - [x]  Version in status bar y CLI
 - [x]  output dir negro. ponerlo blanco y que se lea entero
