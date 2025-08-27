@@ -120,6 +120,8 @@ jobs:
         id: download_artifacts
         env:
           RUN_ID: ${{ steps.vars.outputs.run_id || steps.resolve_run.outputs.run_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ""
         run: |
           RUN_ID="${RUN_ID}"
           if [ -z "${RUN_ID}" ]; then
