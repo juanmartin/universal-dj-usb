@@ -12,6 +12,8 @@
 # - Commits CHANGELOG.md back to the repo (using GITHUB_TOKEN)
 # - Creates a draft GitHub Release (prerelease = true if tag contains '-'), attaching all downloaded artifacts
 
+name: Release
+
 on:
   workflow_run:
     workflows:
