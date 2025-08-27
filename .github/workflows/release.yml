@@ -1,24 +1,134 @@
-name: Release
+# Release workflow
+# - Runs automatically after "Build" completes successfully (workflow_run).
+# - Can also be manually triggered from the Actions UI (workflow_dispatch).
+#   When manually triggered you must provide the tag (and optionally build_run_id).
+#
+# Behavior:
+# - Determines the Build workflow run id to download artifacts from:
+#     * workflow_run: uses the triggering workflow run id
+#     * manual: uses provided build_run_id or finds the latest successful Build run for the given tag
+# - Downloads artifacts from the Build run
+# - Generates/updates CHANGELOG.md with git-cliff
+# - Commits CHANGELOG.md back to the repo (using GITHUB_TOKEN)
+# - Creates a draft GitHub Release (prerelease = true if tag contains '-'), attaching all downloaded artifacts
 
 on:
   workflow_run:
-    workflows: ["Build"]
+    workflows:
+      - "Build"
     types:
       - completed
-  workflow_dispatch: # manual
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.2.3). Required for manual runs."
+        required: true
+      build_run_id:
+        description: "Optional Build workflow run id to download artifacts from. If omitted, the workflow will try to locate the latest successful Build run for the given tag."
+        required: false
+
+permissions:
+  contents: write
+  actions: read
 
 jobs:
-  changelog_release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  release:
+    # Run on workflow_run only when the Build finished successfully,
+    # or run when manually dispatched from the UI.
+    if: >
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # full history needed for changelog
+          fetch-depth: 0
 
-      - name: Generate changelog
+      - name: Determine build run id and tag
+        id: vars
+        run: |
+          echo "event_name=${GITHUB_EVENT_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+            # Use the triggering Build run id provided by the event
+            echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+
+            # Try to infer the tag name from the triggering run.
+            # For tag-triggered Build runs, github.event.workflow_run.head_branch is usually null.
+            # We'll try to get the ref (ref) that triggered the Build run.
+            # The workflow_run object contains "head_sha" and "head_branch"; for tag pushes, head_branch is null.
+            # We'll try to get the tag by looking at the run's head_commit.ref or by resolving the tag from the repo tags.
+            # Best-effort: get tag from github.event.workflow_run.head_branch or from the event payload's ref (if available).
+            TAG_NAME="${{ github.event.workflow_run.head_branch || '' }}"
+            # fallback: use the workflow_run's head_sha to find an annotated/ lightweight tag that points to that sha
+            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+          else
+            # Manual dispatch: get inputs
+            echo "run_id=${{ github.event.inputs.build_run_id }}" >> $GITHUB_OUTPUT
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Authenticate gh CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # gh is preinstalled on ubuntu runners; authenticate using token
+          printf "%s" "${GITHUB_TOKEN}" | gh auth login --with-token
+
+      - name: Resolve Build run id if not provided (manual dispatch)
+        if: github.event_name == 'workflow_dispatch' && steps.vars.outputs.run_id == ''
+        id: resolve_run
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name || github.repository }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          echo "Looking up run for tag: $TAG"
+
+          # Resolve the tag to a commit SHA
+          set -e
+          SHA=$(gh api -H "Accept: application/vnd.github+json" /repos/${OWNER}/${REPO}/git/ref/tags/${TAG} --jq '.object.sha' 2>/dev/null || true)
+          if [ -z "$SHA" ]; then
+            echo "Could not resolve tag ${TAG} to a ref via git/ref/tags/${TAG}. Trying refs/tags/${TAG} (URL-escaped)."
+            SHA=$(gh api -H "Accept: application/vnd.github+json" /repos/${OWNER}/${REPO}/git/ref/tags/refs/tags/${TAG} --jq '.object.sha' 2>/dev/null || true)
+          fi
+
+          if [ -z "$SHA" ]; then
+            echo "ERROR: Could not resolve tag ${TAG} to a commit SHA. Make sure the tag exists in the repository."
+            exit 1
+          fi
+          echo "Resolved tag -> sha: $SHA"
+
+          # Find the most recent successful Build workflow run for that commit SHA
+          # We search the repository workflow runs, filter by run.head_sha and workflow name "Build"
+          RUN_ID=$(gh api /repos/${OWNER}/${REPO}/actions/runs --jq ".workflow_runs[] | select(.name==\"Build\" and .head_sha==\"${SHA}\" and .conclusion==\"success\") | .id" | head -n1 || true)
+
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful Build run found for tag ${TAG} (commit ${SHA})."
+            echo "You can provide the specific build_run_id when manually triggering this workflow."
+            exit 1
+          fi
+
+          echo "Found Build run id: $RUN_ID"
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Download artifacts from Build run
+        id: download_artifacts
+        env:
+          RUN_ID: ${{ steps.vars.outputs.run_id || steps.resolve_run.outputs.run_id }}
+        run: |
+          if [ -z "${RUN_ID}" ]; then
+            echo "ERROR: No Build run id available to download artifacts from. Provide build_run_id as a workflow_dispatch input."
+            exit 1
+          fi
+          echo "Downloading artifacts from Build run id ${RUN_ID}..."
+          mkdir -p artifacts
+          # Use gh run download to download all artifacts from the specified run
+          gh run download "${RUN_ID}" --dir artifacts || { echo "No artifacts found or download failed"; exit 1; }
+          echo "Artifacts downloaded to artifacts/"
+
+      - name: Generate CHANGELOG.md with git-cliff
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
@@ -27,29 +137,28 @@ jobs:
           OUTPUT: CHANGELOG.md
           GITHUB_REPO: ${{ github.repository }}
 
-      - name: Commit and push CHANGELOG.md
+      - name: Commit and push CHANGELOG.md (if changed)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "bot@users.noreply.github.com"
           git config --global user.name "GitHub Actions Bot"
-          git add CHANGELOG.md
-          git commit -m "Update CHANGELOG.md for ${{ github.ref_name }}"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if git diff --quiet --exit-code -- CHANGELOG.md; then
+            echo "No changes to CHANGELOG.md"
+          else
+            git add CHANGELOG.md
+            git commit -m "docs: Update CHANGELOG.md for ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_sha }}"
+            git push
+          fi
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create GitHub Release
+      - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag || (github.event.workflow_run.head_branch) || github.ref_name || github.event.workflow_run.head_sha }}
+          name: Release ${{ github.event.inputs.tag || github.event.workflow_run.head_branch || github.ref_name || github.event.workflow_run.head_sha }}
           body_path: CHANGELOG.md
           draft: true
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || '', '-') }}
           files: artifacts/**/*
-          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
