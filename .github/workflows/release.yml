@@ -1,23 +1,51 @@
-name: Release Drafter
+name: Release
 
 on:
-  push:
-    tags:
-      - "v*" # Only trigger when tags starting with 'v' are pushed
-
-permissions:
-  contents: write
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
 
 jobs:
-  update_release_draft:
-    permissions:
-      contents: write # Required to create/update GitHub releases
-      pull-requests: write # Required for autolabeler
+  changelog_release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      # Drafts release notes when tags are pushed from release.sh
-      - uses: release-drafter/release-drafter@v6
+      - uses: actions/checkout@v4
         with:
-          tag: ${{ github.ref_name }} # Use the pushed tag name
+          fetch-depth: 0 # full history needed for changelog
+
+      - name: Install git-cliff
+        run: |
+          curl -sSL https://github.com/orhun/git-cliff/releases/download/v2.1.2/git-cliff-2.1.2-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv git-cliff /usr/local/bin/
+
+      - name: Generate CHANGELOG.md
+        run: git-cliff -c git-cliff.toml -o CHANGELOG.md
+
+      - name: Commit and push CHANGELOG.md
+        run: |
+          git config --global user.email "bot@users.noreply.github.com"
+          git config --global user.name "GitHub Actions Bot"
+          git add CHANGELOG.md
+          git commit -m "Update CHANGELOG.md for ${{ github.ref_name }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body_path: CHANGELOG.md
+          draft: true
+          files: artifacts/**/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
