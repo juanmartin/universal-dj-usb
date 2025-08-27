@@ -1,10 +1,10 @@
 # To Do
 
-- [x]  Version in status bar y CLI
-- [x]  Better README
-- [ ]  Windows support
-  - [ ]  playlist generation
-  - [ ]  builds
+- [x]  Windows support
+  - [x]  playlist generation
+  - [ ]  release builds
+- [ ]  Fix relative/absolute un m3u8 (doing the same currently)
+- [ ]  Export folder with playlist and files! FEATURE
 - [ ]  Tooltips to help users
 - [ ]  CASTELLANO support
 - [ ]  Serato playlist support
@@ -14,9 +14,12 @@
 - [ ]  QUICK SAVE  (opinionated)
   - USB drive folder structure
   - All formats
+  - suffix
   - relative/absolute ??
 - [ ]  WEBSITE (optional)
 - [ ]  REMEMBER last output dir (optional)
+- [x]  Better README
+- [x]  Version in status bar y CLI
 - [x]  output dir negro. ponerlo blanco y que se lea entero
 - [x]  PORTABLE EXEcutable
   - [x]  CI/CD Releases

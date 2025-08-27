@@ -34,23 +34,42 @@ A tool for converting playlists present in Rekordbox-ready USB drives to various
 
 ## Installation (users)
 
-There are two flavors for this tool: GUI app or CLI. I try to keep feature parity on both.
+There are two flavors for this tool: GUI app or CLI, both are portable 1-file executables. I try to keep feature parity on both.
 
 1. Download the latest release from the [Releases](https://github.com/juanmartin/universal-dj-usb/releases/latest) page. Pick your OS and architecture.
 2. Run the executable (GUI) or follow the CLI instructions.
 3. Be free from vendor lock 👌
 
-## Development
+## Usage (opinionated)
 
-### Note
+I recommend you save the playlists in a folder inside your USB drive so that you take them with you!
 
-I have developed this with heavy use of AI agent (Claude Sonnet 4). I acknowledge the limitations and potential inaccuracies that may arise from this, but on the way I've learned a lot on how to use it wisely. I'd rather say I was the architect that told the builder what to do and closely supervised the process. All testing and validation has been done manually, as well as the engineering approaches taken were decided by me.
+Because of OS reasons, paths might differ when using this tool in macOS vs Windows, so it's also wise to keep this (portable) app in your USB drive in case you need to quickly re-generate your playlists and start playing!
 
-## Usage
+My usual workflow would be:
 
-### Basic Usage
+1. Sync rekordbox playlists to USB drive.
+2. Open the Universal DJ USB app.
+3. Convert the ones I might use at the afters later to a folder in the same USB. 🤣
+4. Profit!
+
+## Detailed Usage
+
+### GUI Usage
+
+1. Launch the application. Refresh USB drives.
+2. Select the USB drive containing the Rekordbox playlists (will be detected automatically).
+3. Choose the desired output folder and format(s) and any specific playlists to convert.
+4. Click "Convert" and wait for the process to complete.
+5. Find created playlist in the specified output folder.
+
+### CLI Usage
 
 ```bash
+# Basic help and version
+udj --help
+udj --version
+
 # List available playlists on a USB drive
 udj list-playlists /path/to/usb/drive
 
@@ -156,6 +175,10 @@ USB Drive/
 
 ## Development
 
+### Note
+
+I have developed this with heavy use of AI agent (Claude Sonnet 4). I acknowledge the limitations and potential inaccuracies that may arise from this, but on the way I've learned a lot on how to use it wisely. I'd rather say I was the architect that told the builder what to do and closely supervised the process. All testing and validation has been done manually, as well as the engineering approaches taken were decided by me.
+
 ### Setting up for Development
 
 ```bash
@@ -198,6 +221,14 @@ uv run pytest --cov=src/universal_dj_usb
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Motivation
+
+I found myself in the situation in which someone wants to play using my equipment (Traktor) and they bring me a rekordbox-ready USB drive, so they would not have their playlists displayed in Traktor. It even happens to me as I only keep a rekordbox-ready USB to play on CDJs at hand at all times. This tool allows you to export your USB drive for CDJs only (using rekordbox) but in case you get to play with Traktor (or possibly anything else coming soon!) at the afters, you are able to convert your playlists on the fly, avoiding having duplicated audio files and just referencing them from created playlists.
+
+## How?
+
+This tool works by parsing the Rekordbox database file (`export.pdb`) and extracting the necessary information to create compatible playlists for other DJ software. Files are untouched. Rekordbox puts audio files in a specific folder structure, so this tool can easily locate them based on the metadata extracted from the database.
 
 ## Acknowledgments
 
