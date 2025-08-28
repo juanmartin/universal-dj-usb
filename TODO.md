@@ -1,30 +1,32 @@
 # To Do
 
-- [x]  Windows support
-  - [x]  playlist generation
-  - [ ]  release builds
-- [ ]  Fix relative/absolute un m3u8 (doing the same currently)
-- [ ]  Export folder with playlist and files! FEATURE
-- [ ]  Tooltips to help users
-- [ ]  CASTELLANO support
-- [ ]  Serato playlist support
-- [ ]  Copy tracks to folder FEATURE
-- [ ]  Enhance analysis with ANLZ data
-- [ ]  Replace dialog! sure?
-- [ ]  QUICK SAVE  (opinionated)
+- [ ] 🐛 Fix relative/absolute un m3u8 (doing the same currently)
+- [ ] ✨ For m3u/8 choose OS destination! FEATURE
+- [ ] ✨ Export folder with playlist and files! FEATURE
+- [ ] ✨ Tooltips to help users
+- [ ] ✨ CASTELLANO support
+- [ ] ✨ Serato playlist support
+- [ ] ✨ Copy tracks to folder FEATURE
+- [ ] ✨ Enhance analysis with ANLZ data
+- [ ] ✨ Replace dialog! sure?
+- [ ] ✨ QUICK SAVE  (opinionated)
   - USB drive folder structure
   - All formats
   - suffix
   - relative/absolute ??
-- [ ]  WEBSITE (optional)
-- [ ]  REMEMBER last output dir (optional)
-- [ ]  Verbose logging in GUI does not add any details
-- [x]  Better README
-- [x]  Version in status bar y CLI
-- [x]  output dir negro. ponerlo blanco y que se lea entero
-- [x]  PORTABLE EXEcutable
-  - [x]  CI/CD Releases
-  - [ ]  code signing y notarization (macos)?
-- [ ]  Refresh usb on launch
-- [x]  `list-playlists` que la columna tengo mas ancho que la cantidad de tracks
-- [x]  sorting en columnas + default rekordbox sorting
+- [ ] 🌐 WEBSITE (optional)
+- [ ] ✨ REMEMBER last output dir (optional)
+- [ ] 🐛 Verbose logging in GUI does not add any details
+- [ ] ✨ Refresh usb on launch
+- [x] Windows support
+  - [x] playlist generation
+  - [x] release builds
+  - [ ] zip with proper name+version
+- [x] Better README
+- [x] Version in status bar y CLI
+- [x] output dir negro. ponerlo blanco y que se lea entero
+- [x] PORTABLE EXEcutable
+  - [x] CI/CD Releases
+  - [ ] code signing y notarization (macos)?
+- [x] `list-playlists` que la columna tengo mas ancho que la cantidad de tracks
+- [x] sorting en columnas + default rekordbox sorting
