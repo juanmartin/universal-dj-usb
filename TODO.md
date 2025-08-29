@@ -1,5 +1,6 @@
 # To Do
 
+- [ ] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
 - [ ] 🐛 Fix relative/absolute un m3u8 (doing the same currently)
 - [ ] ✨ For m3u/8 choose OS destination! FEATURE
 - [ ] ✨ Export folder with playlist and files! FEATURE
