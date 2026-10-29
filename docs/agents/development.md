@@ -3,7 +3,7 @@
 > **Scope:** local setup, commands, test strategy, linting, and debugging.
 > **Read when:** setting up the repo, adding tests, running checks, or investigating a
 > local failure.
-> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
+> **Last verified:** 2026-10-29 against `dev`.
 
 ## Setup
 

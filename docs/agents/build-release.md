@@ -2,7 +2,7 @@
 
 > **Scope:** PyInstaller specs, platform builds, versioning, CI, and release artifacts.
 > **Read when:** changing packaging, CI, versioning, or platform support.
-> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
+> **Last verified:** 2026-10-29 against `dev`.
 
 ## Local builds
 

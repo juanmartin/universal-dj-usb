@@ -1,13 +1,14 @@
 # Implementation Plan: Copy Playlist Files
 
-> **Status:** Implemented and verified on the feature branch; pending merge
-> **Branch:** `feature/copy-playlist-files`
+> **Status:** Merged into `dev` via PR #8; pending release to `main`
+> **Branch:** `dev`
+> **Feature branch:** `feature/copy-playlist-files` (merged)
 > **Worktree:** `../universal-dj-usb-copy-files`
 > **Base:** `main` at `97e3f8d`
 > **Last updated:** 2026-10-29
 >
 > **Resume rule:** read this file first, then `AGENTS.md`, then the linked ADRs. The
-> implementation is complete; only merge close-out and repo-wide lint debt remain.
+> implementation is complete and merged into `dev`; only repo-wide lint debt remains.
 
 ## Goal
 
@@ -189,7 +190,7 @@ In the Conversion Options tab:
 - [x] Manual GUI smoke test offscreen (`QT_QPA_PLATFORM=offscreen`)
 - [x] Update README usage
 - [x] Mark the relevant `TODO.md` items done
-- [ ] Remove the active-plan pointer from `AGENTS.md` after merge
+- [x] Remove the active-plan pointer from `AGENTS.md` after merge
 
 ## Acceptance criteria
 

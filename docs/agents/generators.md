@@ -4,7 +4,7 @@
 > `ConversionConfig` fields.
 > **Read when:** adding or fixing an output format, changing filenames or paths, or
 > wiring a new option into the CLI/GUI.
-> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
+> **Last verified:** 2026-10-29 against `dev`.
 
 ## Base contract
 

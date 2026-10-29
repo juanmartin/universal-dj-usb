@@ -1,7 +1,7 @@
 # AGENTS.md — Universal DJ USB
 
 > Canonical entry point for AI coding agents. Read this file first.
-> Last verified: 2026-10-29 against `main` (`f27598a`).
+> Last verified: 2026-10-29 against `dev` (`3d96047`).
 
 ## 0. Context budget
 
@@ -87,10 +87,8 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 
 ## 5. Current state
 
-- **Active work:** branch `feature/copy-playlist-files` implements playlist file copying;
-  it is implemented and awaiting merge. Follow
-  [docs/plans/copy-playlist-files.md](docs/plans/copy-playlist-files.md) for the final
-  checklist. Remove this pointer when merged.
+- `dev` is the integration branch; feature work lands there via PR. `main` stays
+  release-only, and `feature/copy-playlist-files` is merged into `dev`.
 - Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).

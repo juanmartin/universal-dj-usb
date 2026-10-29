@@ -3,7 +3,7 @@
 > **Scope:** component map, data flow, module contracts, and extension points.
 > **Read when:** changing multiple modules, adding an interface or output format, or
 > onboarding to the codebase.
-> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
+> **Last verified:** 2026-10-29 against `dev`.
 
 ## Component map
 

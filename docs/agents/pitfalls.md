@@ -3,7 +3,7 @@
 > **Scope:** dead code, stale docs, fragile behavior, and traps that are easy to repeat.
 > **Read when:** something behaves unexpectedly, docs disagree, or you are about to
 > “clean up” code that looks unused.
-> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
+> **Last verified:** 2026-10-29 against `dev`.
 
 ## Dead or misleading code
 
