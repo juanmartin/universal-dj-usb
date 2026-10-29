@@ -18,6 +18,7 @@
 - [ ] 🌐 WEBSITE (optional)
 - [ ] ✨ REMEMBER last output dir (optional)
 - [ ] 🐛 Verbose logging in GUI does not add any details
+- [ ] 🧰 Add docs link/index check (`scripts/check_docs.py`) to CI
 - [ ] ✨ Refresh usb on launch
 - [x] Windows support
   - [x] playlist generation
