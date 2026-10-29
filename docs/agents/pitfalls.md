@@ -89,6 +89,9 @@ the user's uncommitted work first.
   the spec comments say QtQml/QtQuick are required for PySide6 on macOS 10.14. Test the
   final `.app` on the Mojave path.
 - `main` does not include `pyi_rth_pyside6_macos.py`; that work is on `mojave-build`.
+- The release workflow is guarded to tag-driven Build runs. Keep the
+  `workflow_run.event == 'push'` guard; otherwise successful PR Builds can create draft
+  releases.
 - There is no supported Linux packaging path.
 
 ## Documentation drift

@@ -1,5 +1,6 @@
 # Release workflow
-# - Runs automatically after "Build" completes successfully (workflow_run).
+# - Runs automatically after a successful tag-driven "Build" (workflow_run from a push).
+# - Ignores Build runs from pull_request and workflow_dispatch so they cannot create releases.
 # - Can also be manually triggered from the Actions UI (workflow_dispatch).
 #   When manually triggered you must provide the tag (and optionally build_run_id).
 #
@@ -36,10 +37,13 @@ permissions:
 
 jobs:
   release:
-    # Run on workflow_run only when the Build finished successfully,
-    # or run when manually dispatched from the UI.
-    if: >
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    # Run on workflow_run only when a tag-driven Build finished successfully.
+    # Build also runs on pull_request and workflow_dispatch; those must not create releases.
+    # Manual releases remain available through workflow_dispatch.
+    if: >-
+      (github.event_name == 'workflow_run'
+      && github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push')
       || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
