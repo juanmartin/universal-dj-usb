@@ -1,8 +1,8 @@
 # ADR-0006: Path Semantics
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-29
-- **Related:** [`generators.md`](../agents/generators.md#path-semantics), [`pitfalls.md`](../agents/pitfalls.md#paths)
+- **Related:** [`generators.md`](../agents/generators.md#path-semantics), [`pitfalls.md`](../agents/pitfalls.md#paths), [ADR-0008](0008-playlist-file-copy-layout.md)
 - **Supersedes:** —
 
 ## Context
@@ -24,34 +24,43 @@ ad-hoc patch.
 
 ## Decision
 
-**TBD.** This ADR is proposed. Candidate designs:
+Use **Option A: relative to the output directory**, with an explicit containment rule.
 
-- **A. Relative to the output directory (recommended for portability).** Pass
-  `output_path.parent` as the base, resolve both paths, and fall back to an absolute path
-  only when they are on different roots. Keep `m3u_absolute_paths` as an explicit
-  override.
-- **B. Explicit path modes.** Replace the booleans with a single mode:
-  `relative-to-output`, `relative-to-usb`, or `absolute`. Generators share one helper.
-- **C. Document absolute as the default.** Keep the current fallback and stop promising
-  relative output. Lowest effort, weakest portability.
-
-Whatever is chosen must define behavior for:
-
-- output inside the USB root vs outside it;
-- Windows drive letters and macOS `/Volumes` paths;
-- NML's Traktor `/:` format vs M3U/M3U8 forward-slash paths;
-- missing files and paths outside the USB root.
+- Generators receive the full output file path but compute relative entries against that
+  file's **parent directory**.
+- A track path becomes relative only when the resolved track file is inside that output
+  directory. Otherwise the generator emits an absolute path. This avoids `../..` paths
+  that appear relative but are not portable.
+- `m3u_absolute_paths` remains an explicit absolute-path override.
+- NML uses the same base for `LOCATION/DIR` and computes `PRIMARYKEY` relative to the
+  supplied volume root when the track is inside it.
+- Missing files and paths outside the output directory fall back to the absolute path and
+  produce a warning where the generator already supports warnings.
+- Copied exports resolve their tracks inside the output directory, so their playlist
+  entries are portable relative paths ([ADR-0008](0008-playlist-file-copy-layout.md)).
 
 ## Consequences
 
-- Option A is the smallest change that preserves the portability goal.
-- Option B is clearer but changes `ConversionConfig` and both interfaces.
-- Option C is honest but weakens the product's “take it on the USB” workflow.
-- Any change must update CLI/GUI options, tests, and `generators.md`.
+- Output written inside the USB root now gets real relative paths; output outside it
+  stays absolute unless the track is under the output directory.
+- Copied playlist folders are portable across machines and mount points.
+- The old behavior of passing the output file as the base is removed.
+- Tests must cover relative/absolute × output inside/outside the USB root, plus Windows
+  drive letters and macOS `/Volumes` paths.
+- CLI/GUI options keep their current names; only their semantics are clarified.
+- `docs/agents/generators.md` and `pitfalls.md` must drop the “relative output is not
+  dependable” warning once implemented.
 
 ## Alternatives considered
 
-Listed above as candidate designs.
+- **B. Explicit path modes.** Replace the booleans with one mode
+  (`relative-to-output`, `relative-to-usb`, `absolute`). Clearer, but changes the public
+  config contract and both interfaces for no immediate user benefit.
+- **C. Absolute by default.** Keep the fallback and stop promising relative output.
+  Rejected: it defeats the portable-export goal.
+- **Relaxed relative paths across roots.** Use `os.path.relpath` even when the track is
+  outside the output directory. Rejected: it produces `../..` entries that break when the
+  folder is moved.
 
 ## Evidence
 

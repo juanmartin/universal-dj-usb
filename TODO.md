@@ -3,11 +3,11 @@
 - [ ] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
 - [ ] 🐛 Fix relative/absolute un m3u8 (doing the same currently)
 - [ ] ✨ For m3u/8 choose OS destination! FEATURE
-- [ ] ✨ Export folder with playlist and files! FEATURE
+- [ ] ✨ Export folder with playlist and files! FEATURE — in progress, see [plan](docs/plans/copy-playlist-files.md)
 - [ ] ✨ Tooltips to help users
 - [ ] ✨ CASTELLANO support
 - [ ] ✨ Serato playlist support
-- [ ] ✨ Copy tracks to folder FEATURE
+- [ ] ✨ Copy tracks to folder FEATURE — in progress, see [plan](docs/plans/copy-playlist-files.md)
 - [ ] ✨ Enhance analysis with ANLZ data
 - [ ] ✨ Replace dialog! sure?
 - [ ] ✨ QUICK SAVE  (opinionated)

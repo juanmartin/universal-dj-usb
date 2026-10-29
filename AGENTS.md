@@ -87,11 +87,14 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 
 ## 5. Current state
 
+- **Active work:** branch `feature/copy-playlist-files` implements playlist file copying;
+  follow [docs/plans/copy-playlist-files.md](docs/plans/copy-playlist-files.md). Remove
+  this pointer when the plan is complete.
 - Version is `0.2.2`; the macOS app bundle still hardcodes `0.1.0` until the TODO is fixed.
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
-- Relative-path behavior is fragile; see [generators.md](docs/agents/generators.md#path-semantics)
-  and the proposed ADR for path semantics.
+- Relative-path behavior is fragile; [ADR-0006](docs/adr/0006-path-semantics.md) now
+  defines the target contract, and the active copy plan implements it.
 - Cue points are modelled and NML can emit them, but no ANLZ extraction exists yet.
 - The test suite has 5 tests and roughly 14% coverage; passing tests do not prove parser
   or generator behavior.
