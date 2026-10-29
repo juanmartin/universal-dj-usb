@@ -157,7 +157,7 @@ Both interfaces construct `ConversionConfig`, then call the same exporter:
 | Filename/suffix | `build_output_filename()` in exporter | `build_output_filename()` in exporter |
 | Parser enhancement | `enhance=True` | worker `enhance=True` for conversion |
 | Copy controls | `--copy-files`, `--number-files`, `--overwrite` | copy/number/overwrite checkboxes |
-| Copy-only | `udj copy-files` | copy-only button (label includes the selection count) |
+| Copy-only | `udj copy-files` | — (use the copy checkbox with Convert) |
 | Output directory | `-o/--output` or positional output for copy | directory picker |
 
 A new format or option must be wired into both columns. The GUI format-label map

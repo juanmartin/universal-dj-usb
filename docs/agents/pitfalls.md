@@ -42,9 +42,9 @@ the user's uncommitted work first.
 - “Verbose logging” currently does not add detail beyond the log viewer (`TODO.md`).
 - The GUI hardcodes `PIONEER/rekordbox/export.pdb`; `RekordboxParser.find_pdb_file()`
   accepts case variants.
-- `ConversionWorker` calls the shared `export_playlists()` path. Conversion enhances
-  selected playlists; copy-only skips enhancement. If the parser passed to the worker is
-  `None` or enhancement is disabled, it skips enhancement.
+- `ConversionWorker` calls the shared `export_playlists()` path. The GUI always generates
+  playlist files and enhances selected playlists; copy-only runs through `udj copy-files`,
+  not the GUI.
 
 ## Paths
 

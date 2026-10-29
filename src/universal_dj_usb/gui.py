@@ -11,8 +11,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import psutil
-from PySide6.QtCore import QSize, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QFont, QIcon, QPalette, QPixmap
+from PySide6.QtCore import QSize, Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QDesktopServices,
+    QFont,
+    QIcon,
+    QPalette,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -303,11 +311,19 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Output Settings")
         output_layout = QGridLayout(output_group)
 
-        # First row: Label and Browse button
+        # First row: Label and Browse/Open buttons
         output_layout.addWidget(QLabel("Output Directory:"), 0, 0)
         self.browse_button = QPushButton("Browse...")
         self.browse_button.clicked.connect(self._browse_output_directory)
         output_layout.addWidget(self.browse_button, 0, 1)
+
+        self.open_output_button = QPushButton("Open Folder")
+        self.open_output_button.setEnabled(False)
+        self.open_output_button.setToolTip(
+            "Open the output folder that contains the playlist files and audio folders."
+        )
+        self.open_output_button.clicked.connect(self._open_output_directory)
+        output_layout.addWidget(self.open_output_button, 0, 2)
 
         # Second row: Full-width path display
         self.output_dir_label = QLabel("No directory selected")
@@ -322,7 +338,7 @@ class MainWindow(QMainWindow):
         self.output_dir_label.setAlignment(
             Qt.AlignTop | Qt.AlignLeft
         )  # Align text to top-left
-        output_layout.addWidget(self.output_dir_label, 1, 0, 1, 2)  # Span both columns
+        output_layout.addWidget(self.output_dir_label, 1, 0, 1, 3)  # Span all columns
 
         layout.addWidget(output_group)
 
@@ -436,15 +452,6 @@ class MainWindow(QMainWindow):
         )
         self.convert_button.clicked.connect(self._start_conversion)
         layout.addWidget(self.convert_button)
-
-        self.copy_only_button = QPushButton("Copy Audio Files Only")
-        self.copy_only_button.setEnabled(False)
-        self.copy_only_button.setMinimumHeight(36)
-        self.copy_only_button.setToolTip(
-            "Copy selected playlists' audio without generating playlist files."
-        )
-        self.copy_only_button.clicked.connect(self._start_copy_only)
-        layout.addWidget(self.copy_only_button)
 
         # Progress Bar
         self.progress_bar = QProgressBar()
@@ -886,6 +893,13 @@ class MainWindow(QMainWindow):
         self.m3u_group.setVisible(show_m3u)
         # self.nml_group.setVisible(show_nml) # comentado porque aun no hay opciones
 
+    def _selected_output_directory(self) -> Optional[Path]:
+        """Return the selected output directory, if any."""
+        text = self.output_dir_label.text().strip()
+        if not text or text == "No directory selected":
+            return None
+        return Path(text)
+
     def _browse_output_directory(self) -> None:
         """Browse for output directory."""
         directory = QFileDialog.getExistingDirectory(
@@ -896,57 +910,64 @@ class MainWindow(QMainWindow):
             self.output_dir_label.setStyleSheet("color: #666; font-style: normal;")
             self._update_conversion_button_state()
 
+    def _open_output_directory(self) -> None:
+        """Open the selected output directory in the system file manager."""
+        output_dir = self._selected_output_directory()
+        if output_dir is None:
+            return
+        if not output_dir.is_dir():
+            QMessageBox.warning(
+                self,
+                "Open Folder",
+                f"The output folder does not exist yet:\n{output_dir}",
+            )
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(output_dir))):
+            QMessageBox.warning(
+                self,
+                "Open Folder",
+                f"Could not open the output folder:\n{output_dir}",
+            )
+
     def _update_conversion_button_state(self) -> None:
         """Update export button enabled states and labels."""
         has_playlists = len(self.selected_playlists) > 0
-        has_output_dir = self.output_dir_label.text() != "No directory selected"
+        has_output_dir = self._selected_output_directory() is not None
         ready = has_playlists and has_output_dir and not self.export_running
         copy_mode = self.copy_files_checkbox.isChecked()
 
         self.convert_button.setEnabled(ready)
-        self.copy_only_button.setEnabled(ready)
+        self.open_output_button.setEnabled(has_output_dir)
 
         if ready:
             count = len(self.selected_playlists)
             plural = "s" if count != 1 else ""
             action = "Convert & Copy" if copy_mode else "Convert"
             self.convert_button.setText(f"{action} {count} Selected Playlist{plural}")
-            self.copy_only_button.setText(f"Copy Files for {count} Playlist{plural}")
         else:
             self.convert_button.setText("Convert Selected Playlists")
-            self.copy_only_button.setText("Copy Audio Files Only")
 
     def _start_conversion(self) -> None:
         """Start the conversion process, optionally copying audio files."""
-        self._start_export(generate_playlists=True, enhance=True, force_copy=None)
+        self._start_export()
 
-    def _start_copy_only(self) -> None:
-        """Copy selected playlist audio without generating playlist files."""
-        self._start_export(generate_playlists=False, enhance=False, force_copy=True)
-
-    def _start_export(
-        self,
-        generate_playlists: bool,
-        enhance: bool,
-        force_copy: Optional[bool],
-    ) -> None:
+    def _start_export(self) -> None:
         """Start a shared exporter run in a worker thread."""
+        output_dir = self._selected_output_directory()
         if (
             self.export_running
             or not self.selected_playlists
-            or self.output_dir_label.text() == "No directory selected"
+            or output_dir is None
             or not self.current_usb_path
         ):
             return
 
         self.export_running = True
-        config = self._create_conversion_config(force_copy=force_copy)
-        output_dir = Path(self.output_dir_label.text())
+        config = self._create_conversion_config()
         playlists = list(self.selected_playlists.values())
 
         # Disable UI during the export
         self.convert_button.setEnabled(False)
-        self.copy_only_button.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
 
@@ -956,17 +977,13 @@ class MainWindow(QMainWindow):
             output_dir=output_dir,
             usb_path=self.current_usb_path,
             parser=self.current_parser,
-            generate_playlists=generate_playlists,
-            enhance=enhance,
         )
         self.conversion_worker.conversion_progress.connect(self._on_conversion_progress)
         self.conversion_worker.conversion_complete.connect(self._on_conversion_complete)
         self.conversion_worker.conversion_error.connect(self._on_conversion_error)
         self.conversion_worker.start()
 
-    def _create_conversion_config(
-        self, force_copy: Optional[bool] = None
-    ) -> ConversionConfig:
+    def _create_conversion_config(self) -> ConversionConfig:
         """Create conversion configuration from UI settings."""
         format_map = {
             "NML (Traktor)": "nml",
@@ -974,10 +991,6 @@ class MainWindow(QMainWindow):
             "M3U8 (Extended)": "m3u8",
             "All Formats": "all",
         }
-
-        copy_files = self.copy_files_checkbox.isChecked()
-        if force_copy is not None:
-            copy_files = force_copy
 
         return ConversionConfig(
             relative_paths=self.relative_paths_radio.isChecked(),
@@ -987,7 +1000,7 @@ class MainWindow(QMainWindow):
             use_format_suffix=self.use_suffix_checkbox.isChecked(),
             m3u_extended=self.m3u_extended_checkbox.isChecked(),
             m3u_absolute_paths=self.absolute_paths_radio.isChecked(),
-            copy_files=copy_files,
+            copy_files=self.copy_files_checkbox.isChecked(),
             number_files=self.number_files_checkbox.isChecked(),
             overwrite_files=self.overwrite_checkbox.isChecked(),
         )
@@ -1053,11 +1066,7 @@ class MainWindow(QMainWindow):
             if has_copies:
                 details.append(copy_summary)
             details.append("Check the logs for details.")
-            QMessageBox.warning(
-                self,
-                "Export Complete",
-                "\n".join(details),
-            )
+            self._show_export_complete_dialog("\n".join(details), warning=True)
         else:
             if result.conversions:
                 message = f"Successfully wrote {len(successful)} playlist file(s)."
@@ -1065,7 +1074,7 @@ class MainWindow(QMainWindow):
                 message = "Copy completed successfully."
             if has_copies:
                 message = f"{message}\n{copy_summary}"
-            QMessageBox.information(self, "Export Complete", message)
+            self._show_export_complete_dialog(message, warning=False)
 
         if result.conversions:
             status = (
@@ -1075,6 +1084,28 @@ class MainWindow(QMainWindow):
         else:
             status = f"Copy complete - {result.total_copied} files copied"
         self.statusBar().showMessage(status)
+
+    def _show_export_complete_dialog(self, message: str, warning: bool) -> None:
+        """Show the completion dialog with an option to open the output folder."""
+        box = QMessageBox(self)
+        box.setWindowTitle("Export Complete")
+        box.setText(message)
+        box.setIcon(
+            QMessageBox.Icon.Warning if warning else QMessageBox.Icon.Information
+        )
+
+        open_button = None
+        if self._selected_output_directory() is not None:
+            open_button = box.addButton(
+                "Open Folder", QMessageBox.ButtonRole.ActionRole
+            )
+        ok_button = box.addButton(QMessageBox.StandardButton.Ok)
+        box.setDefaultButton(ok_button)
+        box.setEscapeButton(ok_button)
+
+        box.exec()
+        if open_button is not None and box.clickedButton() is open_button:
+            self._open_output_directory()
 
     def _on_conversion_error(self, message: str) -> None:
         """Handle an unexpected exporter failure."""

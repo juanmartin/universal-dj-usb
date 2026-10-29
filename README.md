@@ -64,10 +64,10 @@ My usual workflow would be:
 1. Launch the application. Refresh USB drives.
 2. Select the USB drive containing the Rekordbox playlists (will be detected automatically).
 3. Choose the desired output folder and format(s) and any specific playlists to convert.
-4. Optionally check **Copy audio files into per-playlist folders**. Use **Copy Audio Files
-   Only** when you do not need playlist files.
-5. Click "Convert" or "Copy Audio Files Only" and wait for the process to complete.
-6. Find the playlist file(s) and any copied audio in the specified output folder.
+4. Optionally check **Copy audio files into per-playlist folders**.
+5. Click "Convert" and wait for the process to complete.
+6. Use **Open Folder** in the Output Settings or in the completion dialog to reveal the
+   playlist files and their audio folders.
 
 Copied exports look like this:
 

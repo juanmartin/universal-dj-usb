@@ -18,7 +18,7 @@ choose. The feature must exist in both interfaces and share one implementation.
 
 | Decision | Choice |
 |---|---|
-| Scope | Both: convert + copy, and standalone copy-only |
+| Scope | Both interfaces: convert + copy; CLI also supports standalone copy-only |
 | Audio layout | One folder per playlist under the output root |
 | Filenames | Flat, original basename unchanged |
 | Numbering | Optional numeric prefix (`01 - `) to match playlist order |
@@ -101,11 +101,12 @@ udj copy-files /Volumes/USB ./export -p "Set A" --number-files
 In the Conversion Options tab:
 
 - `Copy audio files into per-playlist folders` checkbox.
-- `Prefix filenames with playlist order numbers` checkbox; applies to both convert+copy and
-  copy-only.
+- `Prefix filenames with playlist order numbers` checkbox; applies to copied exports.
 - `Overwrite existing files` checkbox, default off.
-- Existing convert button performs copy + convert when copying is checked.
-- New `Copy Audio Files Only` button runs the same exporter with playlist generation off.
+- Existing convert button performs copy + convert when copying is checked; there is no
+  separate copy-only button.
+- `Open Folder` is enabled once an output directory is selected and is also offered in the
+  completion dialog.
 - Progress is per file; completion dialog and logs report copy counts and missing files.
 
 ## Implementation checklist
@@ -161,7 +162,8 @@ In the Conversion Options tab:
 ### 5. GUI
 
 - [x] Add copy/number/overwrite checkboxes and enabled-state handling.
-- [x] Add the copy-only button and enabled-state handling.
+- [x] Use the main convert button for copy + convert (copy-only stays in the CLI).
+- [x] Add the output-folder button and the completion-dialog Open Folder action.
 - [x] Make the worker call `exporter.py`; emit per-file progress.
 - [x] Report copied/skipped/missing/failed in the dialog and log.
 - [x] Verify the existing convert flow still works without copying.
@@ -199,7 +201,7 @@ In the Conversion Options tab:
    names.
 5. Re-running skips existing files and reports the count.
 6. Missing sources do not abort the operation and are absent from generated playlists.
-7. GUI exposes the same semantics, including copy-only.
+7. GUI exposes the convert + copy semantics; copy-only remains a CLI workflow.
 8. `uv run pytest` passes; no new dependency; no real PDB/audio fixture committed.
 9. `docs/agents/` and ADR index reflect the final behavior.
 
