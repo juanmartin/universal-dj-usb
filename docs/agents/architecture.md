@@ -3,18 +3,21 @@
 > **Scope:** component map, data flow, module contracts, and extension points.
 > **Read when:** changing multiple modules, adding an interface or output format, or
 > onboarding to the codebase.
-> **Last verified:** 2026-10-29 against `main` (`f27598a`).
+> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
 
 ## Component map
 
 | Component | Location | Responsibility |
 |---|---|---|
 | Models | `src/universal_dj_usb/models.py` | Dataclasses for `Track`, `Playlist`, `PlaylistTree`, `CuePoint`, `ConversionConfig`, `ConversionResult`; `KeySignature` enum |
+| Paths | `src/universal_dj_usb/paths.py` | Resolve PDB paths to real files, sanitize/unique names, relative-path containment, volume labels |
 | Parser | `src/universal_dj_usb/parser.py` | Locates and parses `export.pdb` with Kaitai; resolves playlist/track relationships; enhances metadata |
 | Metadata | `src/universal_dj_usb/metadata_extractor.py` | Reads ID3/Vorbis tags with `mutagen`; derives fallback metadata from paths and filenames; merges sources |
+| Copier | `src/universal_dj_usb/copier.py` | Copies one playlist's audio into a per-playlist folder; per-file status and destination map |
+| Exporter | `src/universal_dj_usb/exporter.py` | Shared orchestration: optional metadata enhancement, optional copy, optional playlist generation |
 | Generators | `src/universal_dj_usb/generators/` | `BaseGenerator` plus NML, M3U, and M3U8 implementations |
-| CLI | `src/universal_dj_usb/cli.py` | Click commands: `detect`, `list-playlists`, `convert`, `info` |
-| GUI | `src/universal_dj_usb/gui.py` | PySide6 window, USB detection, playlist selection, conversion thread |
+| CLI | `src/universal_dj_usb/cli.py` | Click commands: `detect`, `list-playlists`, `convert`, `copy-files`, `info` |
+| GUI | `src/universal_dj_usb/gui.py` | PySide6 window, USB detection, playlist selection, shared-export worker |
 | Kaitai | `src/universal_dj_usb/kaitai/` | Generated `RekordboxPdb` and `RekordboxAnlz` classes; do not hand-edit |
 
 ## Data flow
@@ -37,11 +40,20 @@ RekordboxParser(pdb_path).parse()
         │  2. resolve artist/album/genre IDs through lookup tables
         │  3. merge ID3 tags and path-derived metadata
         ▼
-Generator.generate(playlist, output_file_path, usb_path)
+export_playlists(playlists, usb_path, output_dir, config, parser=...)
+        │  optional: resolve each PDB path with paths.resolve_track_source()
+        │  optional: copier.copy_playlist_files() → output/<playlist>/<track>
+        │  optional: clone tracks with destination paths
+        ▼
+create_generators(config) → Generator.generate(playlist, output_file, volume_root)
         │  ConversionConfig controls paths, cue points, M3U style, suffix
         ▼
 .nml / .m3u / .m3u8
 ```
+
+`export_playlists()` is the only orchestration path used by both interfaces. It returns
+an `ExportResult` with one `ConversionResult` per generated file and one
+`PlaylistCopyResult` per copied playlist.
 
 ### Why parsing is two-phase
 
@@ -87,6 +99,29 @@ enhanced = parser.enhance_playlist_tracks(playlist, usb_path)
 - `ConversionResult` is the generator return type: `success`, `playlist_name`,
   `output_file`, `track_count`, `error_message`, `warnings`.
 
+### Paths, copier, and exporter
+
+```python
+source = resolve_track_source(track.file_path, usb_path)
+copy_result = copy_playlist_files(playlist, usb_path, output_dir, folder_name=...)
+export_result = export_playlists(
+    playlists, usb_path, output_dir, config, parser=parser,
+    enhance=True, generate_playlists=True,
+)
+```
+
+- `resolve_track_source()` handles PDB paths (`/Contents/...`), stale absolute paths,
+  Windows separators, and already-copied absolute paths. It prefers an existing file and
+  falls back to the USB root for error reporting.
+- `copy_playlist_files()` keeps original basenames, optionally numbers them, skips
+  existing files unless `overwrite`, and records missing/error files instead of raising.
+  Its `destinations_by_index` map is how the exporter builds a playlist of copied files.
+- `export_playlists()` creates the output root, optionally enhances, optionally copies,
+  then generates each requested format. Missing/unavailable tracks are excluded from the
+  generated playlist and appended as warnings.
+- Interface code must not reimplement this loop. Add options to `ConversionConfig` and
+  pass them through the exporter.
+
 ### Generator
 
 ```python
@@ -104,26 +139,29 @@ class SomeGenerator(BaseGenerator):
   before calling `generate()`.
 - `BaseGenerator._sanitize_filename()` replaces `<>:"/\|?*` with `_` and trims dots and
   whitespace.
-- `BaseGenerator._normalize_path()` converts to a relative path when
-  `config.relative_paths` is true and the path is under the supplied base; otherwise it
-  returns the path with forward slashes. The base passed by generators is the output
-  file, which makes this fragile. See [generators.md](generators.md#path-semantics).
+- `BaseGenerator._normalize_path()` converts to a path relative to the playlist file's
+  parent only when `config.relative_paths` is true and the resolved track is inside that
+  directory; otherwise it returns the absolute path with forward slashes. See
+  [generators.md](generators.md#path-semantics).
 - Generators return a failed `ConversionResult` instead of raising to the interface.
 
 ## Interface wiring
 
-Both interfaces independently construct `ConversionConfig` and choose generators:
+Both interfaces construct `ConversionConfig`, then call the same exporter:
 
 | Concern | CLI (`cli.py`) | GUI (`gui.py`) |
 |---|---|---|
-| Config construction | `convert()` | `MainWindow._create_conversion_config()` |
-| Generator selection | `--format` branch | `ConversionWorker.run()` |
-| Filename/suffix | inline in `convert()` | inline in `ConversionWorker.run()` |
-| Parser enhancement | `enhance_playlist_tracks()` | `ConversionWorker.run()` with the parser passed to it |
-| Output directory | `-o/--output` | directory picker |
+| Config construction | `convert()` / `copy_files()` | `MainWindow._create_conversion_config()` |
+| Export orchestration | `export_playlists()` | `ConversionWorker.run()` → `export_playlists()` |
+| Generator selection | `--format` → `create_generators()` | format combo → `create_generators()` |
+| Filename/suffix | `build_output_filename()` in exporter | `build_output_filename()` in exporter |
+| Parser enhancement | `enhance=True` | worker `enhance=True` for conversion |
+| Copy controls | `--copy-files`, `--number-files`, `--overwrite` | copy/number/overwrite checkboxes |
+| Copy-only | `udj copy-files` | copy-only button (label includes the selection count) |
+| Output directory | `-o/--output` or positional output for copy | directory picker |
 
-A new format or option must be added to both columns. The GUI also has a format-label
-map (`_create_conversion_config`) that must stay in sync with the combo box.
+A new format or option must be wired into both columns. The GUI format-label map
+(`_create_conversion_config`) must stay in sync with the combo box.
 
 ## Extension points
 
@@ -131,8 +169,8 @@ map (`_create_conversion_config`) that must stay in sync with the combo box.
 
 1. Add `generators/<format>.py` subclassing `BaseGenerator`.
 2. Export it from `generators/__init__.py`.
-3. Add the format to the CLI `--format` choices and generator branch.
-4. Add it to the GUI combo/label map and `ConversionWorker.run()`.
+3. Add the format to the CLI `--format` choices and `exporter.create_generators()`.
+4. Add it to the GUI combo/label map; both interfaces use the shared exporter.
 5. Add any new options to `ConversionConfig`, then wire them into both interfaces.
 6. Add generator tests using `Track`/`Playlist` objects and `tmp_path`.
 
@@ -140,8 +178,9 @@ map (`_create_conversion_config`) that must stay in sync with the combo box.
 
 `ConversionConfig` is constructed in `cli.py`, `gui.py`, and `models.py` (defaults and
 `from_dict`). Update all three, then decide whether the option belongs in the CLI, the
-GUI, or both. Do not add a field that no generator reads without documenting it as
-unused.
+GUI, or both. If it changes export behavior, read it in `exporter.py` (or a collaborator
+such as `copier.py`), not in each interface. Do not add a field that no code reads without
+documenting it as unused.
 
 ### Add a parser field
 
@@ -153,16 +192,8 @@ output formats. See [parsing.md](parsing.md).
 
 - No ANLZ/cue extraction; `rekordbox_anlz.py` is generated but unused.
 - Playlist hierarchy is flattened in both interfaces.
-- Relative-path output is not dependable; the output file is passed as the
-  `relative_to()` base.
 - NML key mapping is partial and partly inferred.
-- The test suite does not exercise parsing or generation end-to-end.
-
-## Where to look
-
-- `src/universal_dj_usb/models.py` — data contracts
-- `src/universal_dj_usb/parser.py` — PDB parsing and enhancement
-- `src/universal_dj_usb/metadata_extractor.py` — tag and path metadata
-- `src/universal_dj_usb/generators/base.py` — generator contract
-- `src/universal_dj_usb/cli.py`, `gui.py` — interface wiring
-- `docs/adr/` — decisions behind these contracts
+- Copy cancellation is not implemented; a running copy completes or fails per file.
+- NML volume semantics for arbitrary internal output folders are best-effort. M3U/M3U8
+  are the reliable portable copied-export formats.
+- The test suite is still small; parser and end-to-end real-USB behavior are not covered.

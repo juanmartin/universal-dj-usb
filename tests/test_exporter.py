@@ -4,6 +4,7 @@ from pathlib import Path
 
 from universal_dj_usb.exporter import export_playlists
 from universal_dj_usb.models import ConversionConfig, Playlist, Track
+from universal_dj_usb.paths import volume_name_for
 
 
 def _make_usb(tmp_path: Path) -> Path:
@@ -59,10 +60,11 @@ def test_copy_and_nml_export_uses_export_root_as_volume(tmp_path):
     text = playlist_file.read_text(encoding="utf-8")
     assert result.success
     assert playlist_file.exists()
-    assert 'VOLUME="export"' in text
+    volume = volume_name_for(output)
+    assert f'VOLUME="{volume}"' in text
     assert 'DIR="/:Set A/:"' in text
     assert 'FILE="song.mp3"' in text
-    assert "export/:Set A/:song.mp3" in text
+    assert f"{volume}/:Set A/:song.mp3" in text
 
 
 def test_numbered_copy_is_reflected_in_playlist(tmp_path):
@@ -75,9 +77,7 @@ def test_numbered_copy_is_reflected_in_playlist(tmp_path):
         ],
     )
     output = tmp_path / "export"
-    config = ConversionConfig(
-        output_format="m3u8", copy_files=True, number_files=True
-    )
+    config = ConversionConfig(output_format="m3u8", copy_files=True, number_files=True)
 
     export_playlists([playlist], usb, output, config)
     text = (output / "Ordered.m3u8").read_text(encoding="utf-8")
@@ -106,20 +106,18 @@ def test_missing_tracks_are_excluded_from_playlist(tmp_path):
     assert "Set/missing.mp3" not in text
     assert result.total_missing == 1
     assert result.conversions[0].track_count == 1
-    assert any("could not be copied" in warning for warning in result.conversions[0].warnings)
+    assert any(
+        "could not be copied" in warning for warning in result.conversions[0].warnings
+    )
 
 
 def test_copy_only_produces_no_playlist_files(tmp_path):
     usb = _make_usb(tmp_path)
-    playlist = Playlist(
-        name="Set", tracks=[_track(usb, "Contents/song.mp3")]
-    )
+    playlist = Playlist(name="Set", tracks=[_track(usb, "Contents/song.mp3")])
     output = tmp_path / "export"
     config = ConversionConfig(output_format="m3u8", copy_files=True)
 
-    result = export_playlists(
-        [playlist], usb, output, config, generate_playlists=False
-    )
+    result = export_playlists([playlist], usb, output, config, generate_playlists=False)
 
     assert result.conversions == []
     assert result.total_copied == 1
@@ -141,15 +139,13 @@ def test_no_copy_export_keeps_original_track_paths(tmp_path):
 
     assert result.success
     assert result.copies == []
-    assert str(source) in text
+    assert source.as_posix() in text
     assert not (output / "Set").exists()
 
 
 def test_convert_and_copy_writes_all_requested_formats(tmp_path):
     usb = _make_usb(tmp_path)
-    playlist = Playlist(
-        name="Set", tracks=[_track(usb, "Contents/song.mp3")]
-    )
+    playlist = Playlist(name="Set", tracks=[_track(usb, "Contents/song.mp3")])
     output = tmp_path / "export"
     config = ConversionConfig(output_format="all", copy_files=True)
 
@@ -173,4 +169,21 @@ def test_duplicate_playlist_names_get_separate_folders(tmp_path):
 
     assert (output / "Set" / "one.mp3").exists()
     assert (output / "Set (2)" / "two.mp3").exists()
+    assert (output / "Set.m3u8").exists()
+    assert (output / "Set (2).m3u8").exists()
     assert result.total_copied == 2
+
+
+def test_relative_output_directory_is_resolved(tmp_path, monkeypatch):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(name="Set", tracks=[_track(usb, "Contents/song.mp3")])
+    monkeypatch.chdir(tmp_path)
+    config = ConversionConfig(output_format="m3u8", copy_files=True)
+
+    result = export_playlists([playlist], usb, Path("export"), config)
+
+    assert (tmp_path / "export" / "Set" / "song.mp3").exists()
+    assert (tmp_path / "export" / "Set.m3u8").exists()
+    text = (tmp_path / "export" / "Set.m3u8").read_text(encoding="utf-8")
+    assert "Set/song.mp3" in text
+    assert result.total_copied == 1

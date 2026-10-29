@@ -2,11 +2,10 @@
 
 import logging
 from pathlib import Path
-from typing import List
 
-from .base import BaseGenerator
-from ..models import Playlist, ConversionResult
+from ..models import ConversionResult, Playlist
 from ..paths import resolve_track_source
+from .base import BaseGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,9 @@ class M3UGenerator(BaseGenerator):
 
                 # Determine path type based on M3U-specific option
                 if self.config.m3u_absolute_paths:
-                    track_path = str(resolve_track_source(track.file_path, usb_path))
+                    track_path = str(
+                        resolve_track_source(track.file_path, usb_path)
+                    ).replace("\\", "/")
                 else:
                     track_path = self._normalize_path(
                         resolve_track_source(track.file_path, usb_path),

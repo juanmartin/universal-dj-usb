@@ -36,7 +36,9 @@ def test_copy_flat_filenames_into_playlist_folder(tmp_path):
 
     assert result.success
     assert result.destination_folder == output / "Set A"
-    assert (output / "Set A" / "one.mp3").read_bytes() == b"audio:Contents/Artist/Album/one.mp3"
+    assert (
+        output / "Set A" / "one.mp3"
+    ).read_bytes() == b"audio:Contents/Artist/Album/one.mp3"
     assert (output / "Set A" / "two.flac").exists()
     assert result.copied_count == 2
     assert result.destinations_by_index[0] == output / "Set A" / "one.mp3"
@@ -83,9 +85,7 @@ def test_existing_files_can_be_overwritten(tmp_path):
     destination.parent.mkdir(parents=True)
     destination.write_bytes(b"old")
 
-    result = copy_playlist_files(
-        playlist, usb, tmp_path / "export", overwrite=True
-    )
+    result = copy_playlist_files(playlist, usb, tmp_path / "export", overwrite=True)
 
     assert result.copied_count == 1
     assert destination.read_bytes() == b"audio:Contents/song.mp3"
@@ -122,9 +122,7 @@ def test_duplicate_track_gets_one_numbered_copy_per_position(tmp_path):
     track = _track(usb, "Contents/song.mp3")
     playlist = Playlist(name="Set", tracks=[track, track])
 
-    result = copy_playlist_files(
-        playlist, usb, tmp_path / "export", number_files=True
-    )
+    result = copy_playlist_files(playlist, usb, tmp_path / "export", number_files=True)
 
     assert (tmp_path / "export" / "Set" / "01 - song.mp3").exists()
     assert (tmp_path / "export" / "Set" / "02 - song.mp3").exists()

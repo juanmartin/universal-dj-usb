@@ -27,21 +27,25 @@ Add a shared playlist-file copy service with this contract:
   (`01 - `), with width `max(2, len(str(track_count)))`.
 - Write generated playlist files directly in `<output>`, not inside the per-playlist
   folder.
+- If two selected playlists sanitize to the same name, suffix the later folder and its
+  playlist filenames (`Set (2)/`, `Set (2).m3u8`) so neither overwrites the other.
 - Skip existing destination files by default. Provide an explicit overwrite option.
   Never silently replace a file.
 - If two different sources share a basename, keep the first and suffix later copies
   (`name (2).ext`).
 - Without numbering, copy each identical source once per playlist folder. With numbering,
   copy once per playlist occurrence so every playlist position has its own file.
-- Generated playlists reference the copied files, relative to the output root
-  (`Playlist A/track1.mp3`). The path contract is [ADR-0006](0006-path-semantics.md).
+- Generated playlists reference the copied files, relative to the output root when relative
+  paths are enabled (`Playlist A/track1.mp3`). Absolute-path mode remains available. The
+  path contract is [ADR-0006](0006-path-semantics.md).
 - Exclude missing or uncopyable sources from generated playlists and report them.
 - Expose the same semantics as `udj copy-files`, `udj convert --copy-files`, and the GUI
   copy controls.
 
 ## Consequences
 
-- An exported folder is portable: playlist files and audio travel together.
+- An exported folder is portable in the default relative-path mode: playlist files and
+  audio travel together.
 - Copying is idempotent by default because existing files are skipped.
 - Flat names can collide; the numeric suffix is predictable and reported.
 - Numbering duplicates repeated tracks, trading disk space for exact playlist ordering.

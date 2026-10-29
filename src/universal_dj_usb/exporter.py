@@ -3,9 +3,9 @@
 import logging
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Optional
 
-from .copier import PlaylistCopyResult, copy_playlist_files
+from .copier import FileCopyResult, PlaylistCopyResult, copy_playlist_files
 from .generators import M3U8Generator, M3UGenerator, NMLGenerator
 from .generators.base import BaseGenerator
 from .models import ConversionConfig, ConversionResult, Playlist
@@ -103,14 +103,15 @@ def export_playlists(
     copies.
     """
     result = ExportResult()
+    usb_path = usb_path.expanduser().resolve()
+    output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
     working_playlists = playlists
     if enhance and parser is not None:
         _emit(progress_callback, "Enhancing track metadata...", 0)
         working_playlists = [
-            parser.enhance_playlist_tracks(playlist, usb_path)
-            for playlist in playlists
+            parser.enhance_playlist_tracks(playlist, usb_path) for playlist in playlists
         ]
 
     generators = create_generators(config) if generate_playlists else []
@@ -119,9 +120,7 @@ def export_playlists(
 
     for playlist_index, playlist in enumerate(working_playlists):
         playlist_percent = int((playlist_index / total_playlists) * 100)
-        folder_name = unique_name(
-            sanitize_filename(playlist.name), used_folder_names
-        )
+        folder_name = unique_name(sanitize_filename(playlist.name), used_folder_names)
         used_folder_names.add(folder_name.casefold())
 
         copy_result: Optional[PlaylistCopyResult] = None
@@ -136,12 +135,19 @@ def export_playlists(
             )
 
             def on_file(
-                file_result, current: int, total: int, name: str = playlist.name
+                file_result: FileCopyResult,
+                current: int,
+                total: int,
+                name: str = playlist.name,
             ) -> None:
+                copied_ratio = (current / total) if total else 0
+                file_percent = int(
+                    ((playlist_index + copied_ratio) / total_playlists) * 100
+                )
                 _emit(
                     progress_callback,
                     f"Copying '{name}': {file_result.source.name} ({current}/{total})",
-                    playlist_percent,
+                    file_percent,
                 )
 
             copy_result = copy_playlist_files(
@@ -187,7 +193,7 @@ def export_playlists(
 
         for generator in generators:
             output_path = output_dir / build_output_filename(
-                playlist.name, generator, config
+                folder_name, generator, config
             )
             conversion = generator.generate(
                 output_playlist, output_path, generator_usb_path
@@ -220,8 +226,6 @@ def _add_copy_warnings(
             conversion.warnings.append(item.error)
 
 
-def _emit(
-    callback: Optional[ProgressCallback], message: str, percentage: int
-) -> None:
+def _emit(callback: Optional[ProgressCallback], message: str, percentage: int) -> None:
     if callback:
         callback(message, max(0, min(100, percentage)))

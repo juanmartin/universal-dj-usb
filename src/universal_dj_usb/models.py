@@ -1,9 +1,9 @@
 """Data models for playlist and track information."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class KeySignature(Enum):

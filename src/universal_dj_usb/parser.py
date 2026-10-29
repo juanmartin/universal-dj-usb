@@ -3,11 +3,12 @@
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
 
-from .models import Track, Playlist, PlaylistTree
+from kaitaistruct import BytesIO, KaitaiStream, KaitaiStruct
+
 from .kaitai.rekordbox_pdb import RekordboxPdb
 from .metadata_extractor import AudioMetadataExtractor
+from .models import Playlist, PlaylistTree, Track
 from .paths import resolve_track_source
 
 logger = logging.getLogger(__name__)
@@ -688,9 +689,7 @@ class RekordboxParser:
                 file_metadata = {}
                 if str(track.file_path) != "Unknown":
                     try:
-                        full_file_path = resolve_track_source(
-                            track.file_path, usb_path
-                        )
+                        full_file_path = resolve_track_source(track.file_path, usb_path)
                         file_metadata = (
                             AudioMetadataExtractor.extract_metadata_from_file(
                                 full_file_path

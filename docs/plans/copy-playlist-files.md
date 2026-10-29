@@ -1,13 +1,13 @@
 # Implementation Plan: Copy Playlist Files
 
-> **Status:** Agreed, implementation in progress
+> **Status:** Implemented and verified on the feature branch; pending merge
 > **Branch:** `feature/copy-playlist-files`
 > **Worktree:** `../universal-dj-usb-copy-files`
 > **Base:** `main` at `97e3f8d`
 > **Last updated:** 2026-10-29
 >
-> **Resume rule:** read this file first, then `AGENTS.md`, then the linked ADRs. Continue
-> from the first unchecked item in [Implementation checklist](#implementation-checklist).
+> **Resume rule:** read this file first, then `AGENTS.md`, then the linked ADRs. The
+> implementation is complete; only merge close-out and repo-wide lint debt remain.
 
 ## Goal
 
@@ -45,7 +45,8 @@ OUT/
 
 - Playlist folders use the same sanitization rules as playlist filenames
   (`<>:"/\|?*` replaced, trimmed, fallback `playlist`).
-- If two playlist names sanitize to the same folder, suffix the folder ` (2)`.
+- If two playlist names sanitize to the same name, the later folder and its playlist file
+  get a ` (2)` suffix, so neither overwrites its sibling.
 - Number width is `max(2, len(str(track_count)))`; 100 tracks produce `001 - `.
 - Playlist entries look like `Playlist A/track1.mp3` or `Playlist B/01 - track1.mp3`.
 
@@ -100,7 +101,8 @@ udj copy-files /Volumes/USB ./export -p "Set A" --number-files
 In the Conversion Options tab:
 
 - `Copy audio files into per-playlist folders` checkbox.
-- `Prefix filenames with playlist order numbers` checkbox, enabled only when copying.
+- `Prefix filenames with playlist order numbers` checkbox; applies to both convert+copy and
+  copy-only.
 - `Overwrite existing files` checkbox, default off.
 - Existing convert button performs copy + convert when copying is checked.
 - New `Copy Audio Files Only` button runs the same exporter with playlist generation off.
@@ -114,76 +116,78 @@ In the Conversion Options tab:
 - [x] Record path semantics in ADR-0006.
 - [x] Record copy layout in ADR-0008.
 - [x] Add this plan and link it from `TODO.md` / `AGENTS.md`.
-- [ ] Update `docs/agents/generators.md` and `architecture.md` with the final behavior.
+- [x] Update `docs/agents/generators.md` and `architecture.md` with the final behavior.
 
 ### 2. Core
 
-- [ ] Add `paths.py`:
-  - [ ] `resolve_track_source(file_path, usb_path)` with `/Contents/...`, relative,
+- [x] Add `paths.py`:
+  - [x] `resolve_track_source(file_path, usb_path)` with `/Contents/...`, relative,
         absolute, Windows-separator, and stale-path fallbacks.
-  - [ ] Shared `sanitize_filename(name)`; `BaseGenerator` reuses it.
-- [ ] Add `copier.py`:
-  - [ ] `CopyStatus` and per-file/result dataclasses.
-  - [ ] Create the per-playlist folder.
-  - [ ] Flat original basenames; collision suffix ` (2)`.
-  - [ ] Optional zero-padded numbering in playlist order.
-  - [ ] Deduplicate identical sources when numbering is off.
-  - [ ] Skip existing by default; overwrite mode; `copy2`.
-  - [ ] Missing/unreadable files become results, not exceptions.
-  - [ ] Progress callback.
-- [ ] Add `exporter.py`:
-  - [ ] Optional enhancement; optional copy; optional generation.
-  - [ ] Shared generator selection and filename/suffix construction.
-  - [ ] Clone tracks with destination paths before generation.
-  - [ ] Exclude missing tracks from generated playlists and add warnings.
-  - [ ] Return combined conversion + copy results.
-- [ ] Extend `ConversionConfig` and `from_dict()`.
+  - [x] Shared `sanitize_filename(name)`; `BaseGenerator` reuses it.
+- [x] Add `copier.py`:
+  - [x] `CopyStatus` and per-file/result dataclasses.
+  - [x] Create the per-playlist folder.
+  - [x] Flat original basenames; collision suffix ` (2)`.
+  - [x] Optional zero-padded numbering in playlist order.
+  - [x] Deduplicate identical sources when numbering is off.
+  - [x] Skip existing by default; overwrite mode; `copy2`.
+  - [x] Missing/unreadable files become results, not exceptions.
+  - [x] Progress callback.
+- [x] Add `exporter.py`:
+  - [x] Optional enhancement; optional copy; optional generation.
+  - [x] Shared generator selection and filename/suffix construction.
+  - [x] Clone tracks with destination paths before generation.
+  - [x] Exclude missing tracks from generated playlists and add warnings.
+  - [x] Return combined conversion + copy results.
+- [x] Extend `ConversionConfig` and `from_dict()`.
 
 ### 3. Path fixes
 
-- [ ] `BaseGenerator._normalize_path`: use the playlist file's parent; relative only when
+- [x] `BaseGenerator._normalize_path`: use the playlist file's parent; relative only when
       the track is inside it, otherwise absolute.
-- [ ] M3U and M3U8 pass the parent directory and keep `m3u_absolute_paths` as override.
-- [ ] NML uses the same base for `DIR` and computes `PRIMARYKEY` relative to the supplied
+- [x] M3U and M3U8 pass the parent directory and keep `m3u_absolute_paths` as override.
+- [x] NML uses the same base for `DIR` and computes `PRIMARYKEY` relative to the supplied
       volume root when the track is inside it.
-- [ ] Test output inside and outside the USB root.
+- [x] Test output inside and outside the USB root.
 
 ### 4. CLI
 
-- [ ] Add `copy-files` command with `-p`, `--number-files`, `--overwrite`, `--debug`.
-- [ ] Add `--copy-files`, `--number-files`, `--overwrite` to `convert`.
-- [ ] Reject copy-only flags without a copy mode.
-- [ ] Show per-file progress and a copy summary.
-- [ ] Keep existing convert behavior when copy flags are absent.
+- [x] Add `copy-files` command with `-p`, `--number-files`, `--overwrite`, and the global `--debug`.
+- [x] Add `--copy-files`, `--number-files`, `--overwrite` to `convert`.
+- [x] Reject copy-only flags without a copy mode.
+- [x] Show per-file progress and a copy summary.
+- [x] Keep existing convert behavior when copy flags are absent.
 
 ### 5. GUI
 
-- [ ] Add copy/number/overwrite checkboxes and enable/disable logic.
-- [ ] Add the copy-only button and enabled-state handling.
-- [ ] Make the worker call `exporter.py`; emit per-file progress.
-- [ ] Report copied/skipped/missing/failed in the dialog and log.
-- [ ] Verify the existing convert flow still works without copying.
+- [x] Add copy/number/overwrite checkboxes and enabled-state handling.
+- [x] Add the copy-only button and enabled-state handling.
+- [x] Make the worker call `exporter.py`; emit per-file progress.
+- [x] Report copied/skipped/missing/failed in the dialog and log.
+- [x] Verify the existing convert flow still works without copying.
 
 ### 6. Tests
 
-- [ ] `tests/test_paths.py`: path resolution variants and sanitization.
-- [ ] `tests/test_copier.py`: flat names, numbering, collisions, skip, overwrite, missing,
+- [x] `tests/test_paths.py`: path resolution variants and sanitization.
+- [x] `tests/test_copier.py`: flat names, numbering, collisions, skip, overwrite, missing,
       duplicate tracks, playlist folder collisions.
-- [ ] `tests/test_exporter.py`: copy + M3U8/NML paths, playlist in root, audio in folder,
+- [x] `tests/test_exporter.py`: copy + M3U8/NML paths, playlist in root, audio in folder,
       missing-track exclusion, no-copy behavior.
-- [ ] Add relative/absolute path assertions to `tests/test_generators.py`.
-- [ ] Use only synthetic objects, `tmp_path`, and dummy files (ADR-0004).
+- [x] Add relative/absolute path assertions to `tests/test_generators.py`.
+- [x] `tests/test_cli.py`: copy-only, convert+copy, and flag validation.
+- [x] Use only synthetic objects, `tmp_path`, and dummy files (ADR-0004).
 
 ### 7. Verification and close-out
 
-- [ ] `uv run pytest`
-- [ ] `uv run black src/ tests/`
-- [ ] `uv run isort src/ tests/`
-- [ ] `uv run flake8 src/ tests/`
-- [ ] `uv run udj --help`
-- [ ] Manual GUI smoke test if a display is available.
-- [ ] Update README usage and mark the two relevant `TODO.md` items done.
-- [ ] Remove the active-plan pointer from `AGENTS.md` when complete.
+- [x] `uv run pytest` (40 tests pass)
+- [x] `black` / `isort` on new files and tests
+- [ ] `uv run flake8 src/ tests/` (repo has pre-existing lint debt; new files pass
+      `flake8 --max-line-length=88`, touched legacy files retain pre-existing warnings)
+- [x] `uv run udj --help` and copy command smoke tests
+- [x] Manual GUI smoke test offscreen (`QT_QPA_PLATFORM=offscreen`)
+- [x] Update README usage
+- [x] Mark the relevant `TODO.md` items done
+- [ ] Remove the active-plan pointer from `AGENTS.md` after merge
 
 ## Acceptance criteria
 
@@ -202,7 +206,7 @@ In the Conversion Options tab:
 ## Known limitations to document
 
 - Traktor NML volume semantics for arbitrary/internal output folders are best-effort; the
-  output root name becomes the pseudo-volume.
+  output root name (or drive anchor on Windows) becomes the pseudo-volume.
 - M3U is ASCII; non-ASCII copied filenames may require M3U8.
 - Copying the same track into multiple selected playlists duplicates it per folder.
 - Numbering mode duplicates repeated tracks so every playlist position has its own file.

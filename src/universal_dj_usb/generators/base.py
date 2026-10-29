@@ -2,9 +2,9 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from ..models import Playlist, ConversionConfig, ConversionResult
+from ..models import ConversionConfig, ConversionResult, Playlist
 from ..paths import relative_path_if_inside, sanitize_filename
 
 

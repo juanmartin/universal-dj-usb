@@ -58,7 +58,7 @@ uv sync --dev
 uv run udj --help
 uv run udj detect /path/to/usb
 uv run udj list-playlists /path/to/usb
-uv run udj convert /path/to/usb -f all -o ./out --debug
+uv run udj --debug convert /path/to/usb -f all -o ./out
 uv run udj-gui
 
 # Test and lint
@@ -88,16 +88,18 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 ## 5. Current state
 
 - **Active work:** branch `feature/copy-playlist-files` implements playlist file copying;
-  follow [docs/plans/copy-playlist-files.md](docs/plans/copy-playlist-files.md). Remove
-  this pointer when the plan is complete.
+  it is implemented and awaiting merge. Follow
+  [docs/plans/copy-playlist-files.md](docs/plans/copy-playlist-files.md) for the final
+  checklist. Remove this pointer when merged.
 - Version is `0.2.2`; the macOS app bundle still hardcodes `0.1.0` until the TODO is fixed.
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
-- Relative-path behavior is fragile; [ADR-0006](docs/adr/0006-path-semantics.md) now
-  defines the target contract, and the active copy plan implements it.
+- [ADR-0006](docs/adr/0006-path-semantics.md) defines the path contract. Generators
+  resolve PDB paths to real files and only make them relative when the track is inside
+  the playlist file's directory.
 - Cue points are modelled and NML can emit them, but no ANLZ extraction exists yet.
-- The test suite has 5 tests and roughly 14% coverage; passing tests do not prove parser
-  or generator behavior.
+- The test suite has 40 tests and roughly 29% coverage; passing tests do not prove parser
+  behavior against a real PDB.
 
 ## 6. Decision protocol
 

@@ -1,15 +1,14 @@
 """Traktor NML playlist generator."""
 
+import platform
 import xml.etree.ElementTree as ET
-from xml.dom import minidom
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
-import platform
+from xml.dom import minidom
 
-from .base import BaseGenerator
-from ..models import Playlist, Track, CuePoint, ConversionResult
+from ..models import ConversionResult, CuePoint, Playlist, Track
 from ..paths import relative_path_if_inside, resolve_track_source, volume_name_for
+from .base import BaseGenerator
 
 
 class NMLGenerator(BaseGenerator):
@@ -236,9 +235,7 @@ class NMLGenerator(BaseGenerator):
         # Resolve the physical source, then make it relative when possible.
         absolute_file_path = resolve_track_source(track.file_path, usb_path)
         if self.config.relative_paths:
-            file_path = self._normalize_path(
-                absolute_file_path, output_path.parent
-            )
+            file_path = self._normalize_path(absolute_file_path, output_path.parent)
         else:
             file_path = self._normalize_path(absolute_file_path)
 
@@ -409,7 +406,7 @@ class NMLGenerator(BaseGenerator):
 
         # Windows drive path: C:/...
         if platform.system() == "Windows" and source.anchor:
-            drive = source.anchor.rstrip("\\")
+            drive = source.anchor.rstrip("\\/")
             relative = source.as_posix()[len(source.anchor) :].lstrip("/")
             if relative:
                 return f"{drive}/:{relative.replace('/', '/:')}"

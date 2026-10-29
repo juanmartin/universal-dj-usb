@@ -96,5 +96,5 @@ def relative_path_if_inside(path: Path, base_dir: Path) -> Optional[str]:
 def volume_name_for(path: Path) -> str:
     """Return the volume/drive label Traktor should use for a path."""
     if platform.system() == "Windows":
-        return path.anchor.rstrip("\\")
+        return path.anchor.rstrip("\\/")
     return path.name

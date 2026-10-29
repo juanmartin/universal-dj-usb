@@ -37,13 +37,17 @@ Use **Option A: relative to the output directory**, with an explicit containment
 - Missing files and paths outside the output directory fall back to the absolute path and
   produce a warning where the generator already supports warnings.
 - Copied exports resolve their tracks inside the output directory, so their playlist
-  entries are portable relative paths ([ADR-0008](0008-playlist-file-copy-layout.md)).
+  entries are portable relative paths in relative mode
+  ([ADR-0008](0008-playlist-file-copy-layout.md)).
 
 ## Consequences
 
-- Output written inside the USB root now gets real relative paths; output outside it
-  stays absolute unless the track is under the output directory.
-- Copied playlist folders are portable across machines and mount points.
+- Tracks under the playlist file's directory become relative; everything else stays
+  absolute. An output directory inside the USB root therefore only gets relative entries
+  for tracks copied under it; a normal conversion still points at the USB with absolute
+  paths.
+- Copied playlist folders are portable across machines and mount points in relative-path
+  mode.
 - The old behavior of passing the output file as the base is removed.
 - Tests must cover relative/absolute × output inside/outside the USB root, plus Windows
   drive letters and macOS `/Volumes` paths.
@@ -66,5 +70,6 @@ Use **Option A: relative to the output directory**, with an explicit containment
 
 - `src/universal_dj_usb/generators/base.py` — `_normalize_path()`
 - `src/universal_dj_usb/generators/nml.py`, `m3u.py`, `m3u8.py`
-- `TODO.md` — relative/absolute item
-- `tests/test_generators.py` — currently no path assertions
+- `src/universal_dj_usb/paths.py` — `resolve_track_source()` and containment helper
+- `TODO.md` — relative/absolute item (resolved)
+- `tests/test_generators.py` — relative/absolute path assertions

@@ -89,6 +89,8 @@ def copy_playlist_files(
     *overwrite* is true. Missing sources and copy errors are recorded in the
     result instead of aborting the operation.
     """
+    usb_path = usb_path.expanduser().resolve()
+    output_dir = output_dir.expanduser().resolve()
     folder = output_dir / (folder_name or sanitize_filename(playlist.name))
     result = PlaylistCopyResult(
         playlist_name=playlist.name,
