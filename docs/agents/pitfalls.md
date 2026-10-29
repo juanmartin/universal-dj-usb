@@ -3,7 +3,7 @@
 > **Scope:** dead code, stale docs, fragile behavior, and traps that are easy to repeat.
 > **Read when:** something behaves unexpectedly, docs disagree, or you are about to
 > “clean up” code that looks unused.
-> **Last verified:** 2026-10-29 against `main` (`f27598a`).
+> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
 
 ## Dead or misleading code
 
@@ -42,21 +42,42 @@ the user's uncommitted work first.
 - “Verbose logging” currently does not add detail beyond the log viewer (`TODO.md`).
 - The GUI hardcodes `PIONEER/rekordbox/export.pdb`; `RekordboxParser.find_pdb_file()`
   accepts case variants.
-- `ConversionWorker` enhances selected playlists before generating. If the parser passed
-  to the worker is `None`, it skips enhancement.
+- `ConversionWorker` calls the shared `export_playlists()` path. The GUI always generates
+  playlist files and enhances selected playlists; copy-only runs through `udj copy-files`,
+  not the GUI.
 
 ## Paths
 
-- `BaseGenerator._normalize_path()` is called with the **output file** as `base_path`, so
-  `track.file_path.relative_to(output_file)` usually fails and falls back to an absolute
-  path. “Relative” output is not dependable.
-- `m3u_absolute_paths` is separate from `relative_paths`; contradictory settings are
-  possible.
-- M3U and M3U8 have slightly different absolute-path branches.
+- `BaseGenerator._normalize_path()` uses the playlist file's **parent directory** as its
+  base and emits a relative path only when the resolved track is inside it. Everything
+  else becomes absolute. See [ADR-0006](../adr/0006-path-semantics.md).
+- `m3u_absolute_paths` is separate from `relative_paths`; it is an explicit M3U/M3U8
+  override, not a contradiction of the containment rule.
+- PDB paths are pseudo-paths (`/Contents/...`). Always resolve them with
+  `paths.resolve_track_source()` before checking existence, copying, or making them
+  relative.
 - NML uses Traktor's `/:` separator and a `VOLUME` attribute, not just forward slashes.
+  For copied exports the output folder name becomes the pseudo-volume; that is best-effort
+  for internal disks.
 - `Track.relative_path` only replaces backslashes; it does not compute a relative path.
 - Windows drive letters, macOS `/Volumes/...`, and Linux mount points all occur. Test both
   shapes when touching path logic.
+- Do not use `os.path.relpath()` across roots. `../..` entries break as soon as the export
+  folder moves.
+
+## Copy mode
+
+- Existing destination files are skipped unless `overwrite_files` / `--overwrite` is set.
+  The playlist still points at the existing file, so a stale export can be reused silently.
+- Different source files with the same basename are kept in one folder with ` (2)` suffixes.
+- Without numbering, an identical source repeated in one playlist is copied once. With
+  numbering, each playlist position gets its own numbered copy.
+- Missing tracks still consume a number, so numbered folders can have gaps.
+- Missing or uncopyable tracks are excluded from generated playlists and reported as
+  warnings; the operation does not abort.
+- M3U is ASCII. Numbered or copied filenames with non-ASCII characters can make M3U fail;
+  use M3U8 for those exports.
+- Copying the same track to several selected playlists duplicates it per playlist folder.
 
 ## Kaitai regeneration
 
@@ -69,11 +90,12 @@ the user's uncommitted work first.
 
 ## Testing
 
-- 5 tests, roughly 14% coverage; parser and generator paths are mostly untested.
+- 40 tests, roughly 29% coverage; parser and most real-USB behavior are still untested.
 - No PDB fixture; `*.pdb` is git-ignored.
-- Generator tests currently only assert extensions.
+- Generator tests cover extensions plus relative/absolute path cases; copier/exporter/CLI
+  tiny-file tests cover the copy workflow.
 - `pytest` always runs coverage via `addopts`; a “clean” run is not a strong correctness
-  signal.
+  signal for the Kaitai parser.
 
 ## Build and release
 
@@ -81,8 +103,8 @@ the user's uncommitted work first.
   `--both`.
 - `udj_cli_macos.spec` is onefile despite its “onedir” header comment.
 - `SPEC_FILES.md` repeats the stale macOS CLI onedir claim.
-- `udj_gui_macos.spec` hardcodes `CFBundleVersion`/`CFBundleShortVersionString` to
-  `0.1.0`; `pyproject.toml` is the real version source.
+- `udj_gui_macos.spec` reads `CFBundleVersion`/`CFBundleShortVersionString` from
+  `pyproject.toml`; run PyInstaller from the repository root so the file resolves.
 - CI uploads the raw macOS `udj` binary, not the local CLI `tar.gz`; a `.app` `tar.gz` is
   only a no-DMG fallback.
 - `scripts/cleanup_qt_frameworks.py` removes QtQml/QtQuick/QtNetwork/QtOpenGL even though

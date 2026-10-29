@@ -1,9 +1,9 @@
 """Data models for playlist and track information."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class KeySignature(Enum):
@@ -149,6 +149,9 @@ class ConversionConfig:
     use_format_suffix: bool = False  # Whether to append format suffix to filenames
     m3u_extended: bool = True  # Whether to use extended M3U format with metadata
     m3u_absolute_paths: bool = False  # Whether to use absolute paths in M3U files
+    copy_files: bool = False  # Copy playlist audio into per-playlist folders
+    number_files: bool = False  # Prefix copied filenames with playlist order
+    overwrite_files: bool = False  # Overwrite existing files when copying
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "ConversionConfig":

@@ -2,18 +2,17 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import click
 from rich.console import Console
-from rich.progress import Progress, TaskID
+from rich.progress import Progress
 from rich.table import Table
-from rich.panel import Panel
 
 from . import __version__
+from .exporter import ExportResult, export_playlists
+from .models import ConversionConfig, Playlist, PlaylistTree
 from .parser import RekordboxParser
-from .models import ConversionConfig, Playlist
-from .generators import NMLGenerator, M3UGenerator, M3U8Generator
 
 console = Console()
 logger = logging.getLogger(__name__)
@@ -41,7 +40,9 @@ def setup_logging(debug: bool = False) -> None:
 
 @click.group()
 @click.option("--debug", is_flag=True, help="Enable debug output")
-@click.version_option(version=__version__, prog_name="Universal DJ USB Playlist Converter")
+@click.version_option(
+    version=__version__, prog_name="Universal DJ USB Playlist Converter"
+)
 @click.pass_context
 def cli(ctx: click.Context, debug: bool) -> None:
     """Universal DJ USB Playlist Converter.
@@ -67,7 +68,7 @@ def detect(usb_path: Path) -> None:
         parser = RekordboxParser(pdb_path)
         if parser.parse():
             playlist_tree = parser.get_playlists(usb_path)
-            console.print(f"[green]✓ Successfully parsed database[/green]")
+            console.print("[green]✓ Successfully parsed database[/green]")
             console.print(f"Found {len(playlist_tree.all_playlists)} playlists")
         else:
             console.print("[red]✗ Failed to parse database[/red]")
@@ -116,6 +117,69 @@ def list_playlists(usb_path: Path) -> None:
     console.print(table)
 
 
+def _open_database(usb_path: Path) -> Optional[RekordboxParser]:
+    """Find and parse the Rekordbox database, printing errors."""
+    pdb_path = RekordboxParser.find_pdb_file(usb_path)
+    if not pdb_path:
+        console.print("[red]✗ No Rekordbox database found[/red]")
+        return None
+
+    parser = RekordboxParser(pdb_path)
+    if not parser.parse():
+        console.print("[red]✗ Failed to parse database[/red]")
+        return None
+    return parser
+
+
+def _select_playlists(
+    playlist_tree: PlaylistTree, names: Tuple[str, ...]
+) -> List[Playlist]:
+    """Select named playlists, or every non-empty playlist when no names are given."""
+    selected: List[Playlist] = []
+    seen: set[int] = set()
+    if names:
+        for name in names:
+            found = playlist_tree.get_playlist_by_name(name)
+            if found and id(found) not in seen:
+                seen.add(id(found))
+                selected.append(found)
+            elif not found:
+                console.print(f"[yellow]Warning: Playlist '{name}' not found[/yellow]")
+    else:
+        selected = [
+            playlist
+            for playlist in playlist_tree.all_playlists.values()
+            if not playlist.is_folder and playlist.track_count > 0
+        ]
+    return selected
+
+
+def _print_copy_summary(export_result: ExportResult) -> None:
+    """Print per-playlist copy counts and an aggregate summary."""
+    for copy_result in export_result.copies:
+        console.print(
+            f"[cyan]📁 {copy_result.playlist_name}[/cyan]: "
+            f"{copy_result.copied_count} copied, "
+            f"{copy_result.skipped_count} skipped, "
+            f"{copy_result.duplicate_count} duplicates, "
+            f"{copy_result.missing_count} missing, "
+            f"{copy_result.error_count} errors → {copy_result.destination_folder}"
+        )
+        if copy_result.error:
+            console.print(f"  [red]✗[/red] {copy_result.error}")
+        for item in copy_result.files:
+            if item.status.value in ("missing", "error") and item.error:
+                console.print(f"  [yellow]⚠[/yellow] {item.error}")
+
+    console.print(
+        f"[bold]Files:[/bold] {export_result.total_copied} copied, "
+        f"{export_result.total_skipped} skipped, "
+        f"{export_result.total_duplicates} duplicates, "
+        f"{export_result.total_missing} missing, "
+        f"{export_result.total_errors} errors"
+    )
+
+
 @cli.command()
 @click.argument("usb_path", type=click.Path(exists=True, path_type=Path))
 @click.option(
@@ -151,27 +215,56 @@ def list_playlists(usb_path: Path) -> None:
 @click.option(
     "--m3u-extended/--m3u-simple",
     default=True,
-    help="Use extended M3U format with metadata (default) or simple format (paths only)",
+    help=(
+        "Use extended M3U format with metadata (default) or simple format "
+        "(paths only)"
+    ),
 )
 @click.option(
     "--m3u-absolute-paths/--m3u-relative-paths",
     default=False,
     help="Use absolute paths in M3U files instead of relative paths",
 )
+@click.option(
+    "--copy-files",
+    is_flag=True,
+    default=False,
+    help="Copy each playlist's audio into a per-playlist folder",
+)
+@click.option(
+    "--number-files",
+    is_flag=True,
+    default=False,
+    help="Prefix copied filenames with their playlist position (requires --copy-files)",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing copied files instead of skipping them",
+)
 @click.pass_context
 def convert(
     ctx: click.Context,
     usb_path: Path,
     output: Optional[Path],
-    playlist: tuple,
+    playlist: Tuple[str, ...],
     format: str,
     relative_paths: bool,
     use_format_suffix: bool,
     m3u_extended: bool,
     m3u_absolute_paths: bool,
+    copy_files: bool,
+    number_files: bool,
+    overwrite: bool,
 ) -> None:
     """Convert Rekordbox playlists to specified format(s)."""
     debug = ctx.obj.get("debug", False)
+
+    if number_files and not copy_files:
+        raise click.UsageError("--number-files requires --copy-files")
+    if overwrite and not copy_files:
+        raise click.UsageError("--overwrite requires --copy-files")
 
     # Set default output path
     if output is None:
@@ -180,153 +273,197 @@ def convert(
     console.print(f"[bold blue]Converting playlists from:[/bold blue] {usb_path}")
     console.print(f"[bold blue]Output directory:[/bold blue] {output}")
     console.print(f"[bold blue]Format:[/bold blue] {format}")
+    if copy_files:
+        console.print("[bold blue]Copy audio files:[/bold blue] yes")
 
-    # Find and parse PDB
-    pdb_path = RekordboxParser.find_pdb_file(usb_path)
-    if not pdb_path:
-        console.print("[red]✗ No Rekordbox database found[/red]")
-        return
-
-    parser = RekordboxParser(pdb_path)
-    if not parser.parse():
-        console.print("[red]✗ Failed to parse database[/red]")
+    parser = _open_database(usb_path)
+    if parser is None:
         return
 
     playlist_tree = parser.get_playlists(usb_path)
-
     if not playlist_tree.all_playlists:
         console.print("[yellow]No playlists found[/yellow]")
         return
 
-    # Filter playlists if specified
-    playlists_to_convert = []
-    if playlist:
-        for name in playlist:
-            found_playlist = playlist_tree.get_playlist_by_name(name)
-            if found_playlist:
-                playlists_to_convert.append(found_playlist)
-            else:
-                console.print(f"[yellow]Warning: Playlist '{name}' not found[/yellow]")
-    else:
-        # Convert all playlists (excluding folders)
-        playlists_to_convert = [
-            pl
-            for pl in playlist_tree.all_playlists.values()
-            if not pl.is_folder and pl.track_count > 0
-        ]
-
+    playlists_to_convert = _select_playlists(playlist_tree, playlist)
     if not playlists_to_convert:
         console.print("[yellow]No playlists to convert[/yellow]")
         return
 
-    # Enhance tracks with file metadata only for playlists being converted
-    enhanced_playlists = []
-    for playlist_obj in playlists_to_convert:
-        enhanced_playlist = parser.enhance_playlist_tracks(playlist_obj, usb_path)
-        enhanced_playlists.append(enhanced_playlist)
-
-    # Create configuration
     config = ConversionConfig(
         relative_paths=relative_paths,
         output_format=format.lower(),
         use_format_suffix=use_format_suffix,
         m3u_extended=m3u_extended,
         m3u_absolute_paths=m3u_absolute_paths,
+        copy_files=copy_files,
+        number_files=number_files,
+        overwrite_files=overwrite,
     )
 
-    # Create generators
-    generators = []
-    if format.lower() == "all":
-        generators = [NMLGenerator(config), M3UGenerator(config), M3U8Generator(config)]
-    elif format.lower() == "nml":
-        generators = [NMLGenerator(config)]
-    elif format.lower() == "m3u":
-        generators = [M3UGenerator(config)]
-    elif format.lower() == "m3u8":
-        generators = [M3U8Generator(config)]
-
-    # Convert playlists
-    output.mkdir(parents=True, exist_ok=True)
-
     with Progress() as progress:
-        task = progress.add_task(
-            "Converting playlists...", total=len(enhanced_playlists) * len(generators)
+        task = progress.add_task("Exporting playlists...", total=100)
+
+        def on_progress(message: str, percent: int) -> None:
+            progress.update(task, completed=percent, description=message)
+
+        export_result = export_playlists(
+            playlists=playlists_to_convert,
+            usb_path=usb_path,
+            output_dir=output,
+            config=config,
+            parser=parser,
+            enhance=True,
+            generate_playlists=True,
+            progress_callback=on_progress,
         )
 
-        results = []
-        for playlist_obj in enhanced_playlists:
-            for generator in generators:
-                # Construct the filename like the GUI does
-                filename = generator._sanitize_filename(playlist_obj.name)
+    for conversion in export_result.conversions:
+        output_name = (
+            conversion.output_file.name if conversion.output_file else "(unknown)"
+        )
+        if conversion.success:
+            console.print(
+                f"[green]✓[/green] {conversion.playlist_name} → {output_name}"
+            )
+            if debug and conversion.warnings:
+                for warning in conversion.warnings:
+                    console.print(f"  [yellow]⚠[/yellow] {warning}")
+        else:
+            console.print(
+                f"[red]✗[/red] {conversion.playlist_name}: {conversion.error_message}"
+            )
 
-                # Add format suffix if requested (before the extension)
-                if config.use_format_suffix:
-                    # Get the format name without the dot (e.g., "nml", "m3u", "m3u8")
-                    format_name = generator.file_extension.lstrip(".")
-                    filename = f"{filename}_{format_name}"
-
-                # Add the file extension
-                filename = f"{filename}{generator.file_extension}"
-
-                # Create the full output path
-                output_path = output / filename
-
-                result = generator.generate(playlist_obj, output_path, usb_path)
-                results.append(result)
-
-                if result.success:
-                    console.print(
-                        f"[green]✓[/green] {playlist_obj.name} → {result.output_file.name}"
-                    )
-                    # Only show warnings in debug mode
-                    if debug and result.warnings:
-                        for warning in result.warnings:
-                            console.print(f"  [yellow]⚠[/yellow] {warning}")
-                else:
-                    console.print(
-                        f"[red]✗[/red] {playlist_obj.name}: {result.error_message}"
-                    )
-
-                progress.advance(task)
-
-    # Improved Summary
-    successful = sum(1 for r in results if r.success)
-    total = len(results)
+    successful = len(export_result.successful_conversions)
+    total = len(export_result.conversions)
     failed = total - successful
 
     console.print()
-    if successful == total:
+    if total and successful == total:
+        file_word = "playlist file" if successful == 1 else "playlist files"
         console.print(
-            f"[bold green]✅ Successfully converted {successful} playlist{'s' if successful != 1 else ''}[/bold green]"
+            f"[bold green]✅ Successfully converted {successful} "
+            f"{file_word}[/bold green]"
         )
-    else:
+    elif total:
         console.print(
-            f"[yellow]⚠ Converted {successful}/{total} playlists ({failed} failed)[/yellow]"
+            f"[yellow]⚠ Converted {successful}/{total} playlist files "
+            f"({failed} failed)[/yellow]"
         )
 
-    # Show basic info for each successful conversion
-    for result in results:
-        if result.success:
-            console.print(
-                f"[cyan]📁 {result.playlist_name}[/cyan]: {result.track_count} tracks → {result.output_file.name}"
-            )
+    for conversion in export_result.successful_conversions:
+        output_name = (
+            conversion.output_file.name if conversion.output_file else "(unknown)"
+        )
+        console.print(
+            f"[cyan]📁 {conversion.playlist_name}[/cyan]: "
+            f"{conversion.track_count} tracks → {output_name}"
+        )
+
+    if copy_files:
+        _print_copy_summary(export_result)
 
     console.print(f"[dim]Output directory: {output}[/dim]")
 
     # Debug info
     if debug:
-        console.print(f"\n[dim]Debug Info:[/dim]")
+        console.print("\n[dim]Debug Info:[/dim]")
         console.print(f"[dim]• Input path: {usb_path}[/dim]")
         console.print(f"[dim]• Format: {format}[/dim]")
         console.print(f"[dim]• Relative paths: {relative_paths}[/dim]")
         console.print(f"[dim]• Use format suffix: {use_format_suffix}[/dim]")
+        console.print(f"[dim]• Copy files: {copy_files}[/dim]")
+        console.print(f"[dim]• Number files: {number_files}[/dim]")
+        console.print(f"[dim]• Overwrite files: {overwrite}[/dim]")
         if format.lower() in ["m3u", "m3u8", "all"]:
             console.print(f"[dim]• M3U extended format: {m3u_extended}[/dim]")
             console.print(f"[dim]• M3U absolute paths: {m3u_absolute_paths}[/dim]")
-        if any(r.warnings for r in results):
-            console.print(
-                f"[dim]• Total warnings: {sum(len(r.warnings) for r in results)}[/dim]"
-            )
+        if any(r.warnings for r in export_result.conversions):
+            warning_count = sum(len(r.warnings) for r in export_result.conversions)
+            console.print(f"[dim]• Total warnings: {warning_count}[/dim]")
+
+
+@cli.command("copy-files")
+@click.argument("usb_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("output", type=click.Path(path_type=Path))
+@click.option(
+    "--playlist",
+    "-p",
+    multiple=True,
+    help="Specific playlist names to copy (can be used multiple times)",
+)
+@click.option(
+    "--number-files",
+    is_flag=True,
+    default=False,
+    help="Prefix copied filenames with their playlist position",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing files instead of skipping them",
+)
+@click.pass_context
+def copy_files(
+    ctx: click.Context,
+    usb_path: Path,
+    output: Path,
+    playlist: Tuple[str, ...],
+    number_files: bool,
+    overwrite: bool,
+) -> None:
+    """Copy the audio files of playlists into per-playlist folders."""
+    debug = ctx.obj.get("debug", False)
+
+    console.print(f"[bold blue]Copying playlist files from:[/bold blue] {usb_path}")
+    console.print(f"[bold blue]Destination:[/bold blue] {output}")
+
+    parser = _open_database(usb_path)
+    if parser is None:
+        return
+
+    playlist_tree = parser.get_playlists(usb_path)
+    if not playlist_tree.all_playlists:
+        console.print("[yellow]No playlists found[/yellow]")
+        return
+
+    playlists_to_copy = _select_playlists(playlist_tree, playlist)
+    if not playlists_to_copy:
+        console.print("[yellow]No playlists to copy[/yellow]")
+        return
+
+    config = ConversionConfig(
+        copy_files=True,
+        number_files=number_files,
+        overwrite_files=overwrite,
+    )
+
+    with Progress() as progress:
+        task = progress.add_task("Copying playlist files...", total=100)
+
+        def on_progress(message: str, percent: int) -> None:
+            progress.update(task, completed=percent, description=message)
+
+        export_result = export_playlists(
+            playlists=playlists_to_copy,
+            usb_path=usb_path,
+            output_dir=output,
+            config=config,
+            parser=None,
+            enhance=False,
+            generate_playlists=False,
+            progress_callback=on_progress,
+        )
+
+    _print_copy_summary(export_result)
+    console.print(f"[dim]Destination: {output}[/dim]")
+
+    if debug:
+        console.print("\n[dim]Debug Info:[/dim]")
+        console.print(f"[dim]• Input path: {usb_path}[/dim]")
+        console.print(f"[dim]• Number files: {number_files}[/dim]")
+        console.print(f"[dim]• Overwrite files: {overwrite}[/dim]")
 
 
 @cli.command()
@@ -357,7 +494,8 @@ def info(usb_path: Path, playlist_name: str) -> None:
     console.print(f"[bold cyan]Name:[/bold cyan] {playlist.name}")
     console.print(f"[bold cyan]Tracks:[/bold cyan] {playlist.track_count}")
     console.print(
-        f"[bold cyan]Total Duration:[/bold cyan] {playlist.total_duration/60:.1f} minutes"
+        f"[bold cyan]Total Duration:[/bold cyan] "
+        f"{playlist.total_duration/60:.1f} minutes"
     )
     console.print(
         f"[bold cyan]Type:[/bold cyan] {'Folder' if playlist.is_folder else 'Playlist'}"
@@ -365,7 +503,7 @@ def info(usb_path: Path, playlist_name: str) -> None:
 
     # Show first few tracks
     if playlist.tracks:
-        console.print("\\n[bold cyan]Sample tracks:[/bold cyan]")
+        console.print("\n[bold cyan]Sample tracks:[/bold cyan]")
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Artist", style="cyan")
         table.add_column("Title", style="green")

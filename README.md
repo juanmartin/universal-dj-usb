@@ -28,6 +28,8 @@ A tool for converting playlists present in Rekordbox-ready USB drives to various
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Preserve metadata**: Keep track information, BPM, Key
 - **Flexible paths**: Support for both relative and absolute file paths
+- **Portable exports**: Optionally copy each playlist's audio into per-playlist folders
+  with relative playlist paths, or number files to preserve playlist order
 - **Playlist filtering**: Convert specific playlists or all playlists at once
 - **GUI**: Graphical user interface for easy interaction
 - **CLI interface**: Easy-to-use command-line interface with rich output
@@ -62,8 +64,27 @@ My usual workflow would be:
 1. Launch the application. Refresh USB drives.
 2. Select the USB drive containing the Rekordbox playlists (will be detected automatically).
 3. Choose the desired output folder and format(s) and any specific playlists to convert.
-4. Click "Convert" and wait for the process to complete.
-5. Find created playlist in the specified output folder.
+4. Optionally check **Copy audio files into per-playlist folders**.
+5. Click "Convert" and wait for the process to complete.
+6. Use **Open Folder** in the Output Settings or in the completion dialog to reveal the
+   playlist files and their audio folders.
+
+Copied exports look like this:
+
+```text
+OUT/
+├── Playlist A.m3u8
+├── Playlist B.nml
+├── Playlist A/
+│   ├── track1.mp3
+│   └── track2.flac
+└── Playlist B/
+    ├── 01 - track1.mp3
+    └── 02 - track2.mp3
+```
+
+Playlist files stay in `OUT/`; each playlist's audio goes in its own folder. Existing files
+are skipped unless you enable overwrite.
 
 ### CLI Usage
 
@@ -83,6 +104,15 @@ udj convert /path/to/usb/drive -p "My Playlist" -p "Another Playlist" -f m3u
 
 # Convert to all formats
 udj convert /path/to/usb/drive -f all -o ./output
+
+# Convert and copy the audio into per-playlist folders
+udj convert /path/to/usb/drive -p "My Playlist" -f m3u8 -o ./output --copy-files
+
+# Copy audio only, without generating playlist files
+udj copy-files /path/to/usb/drive ./output -p "My Playlist"
+
+# Number copied files in playlist order
+udj copy-files /path/to/usb/drive ./output -p "My Playlist" --number-files
 ```
 
 ### Commands
@@ -115,7 +145,29 @@ Options:
   -p, --playlist TEXT         Specific playlist names to convert (multiple allowed)
   -f, --format [nml|m3u|m3u8|all]  Output format (default: nml)
   --relative-paths/--absolute-paths  Use relative or absolute file paths (default: relative)
+  --copy-files                Copy each playlist's audio into a per-playlist folder
+  --number-files              Prefix copied filenames with playlist order (requires --copy-files)
+  --overwrite                 Overwrite existing copied files instead of skipping
 ```
+
+#### `copy-files`
+
+Copy the audio files belonging to selected playlists into per-playlist folders, without
+generating playlist files.
+
+```bash
+udj copy-files [OPTIONS] USB_PATH OUTPUT
+
+Options:
+  -p, --playlist TEXT         Specific playlist names to copy (default: all non-empty)
+  --number-files              Prefix copied filenames with playlist order
+  --overwrite                 Overwrite existing files instead of skipping
+```
+
+In convert+copy mode, playlist files are written in the output root, while audio goes in
+`OUTPUT/<playlist name>/`. `copy-files` only writes the audio folders. In the default
+relative mode, generated playlists reference the copied files whenever the files are inside
+the output directory.
 
 #### `info`
 
@@ -234,11 +286,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Many times I have found myself in the situation in which someone wants to play using my equipment (Traktor) and they have a rekordbox-ready USB drive, so they would not have their playlists displayed in Traktor, only the `Contents/` folder impossible to play with. It even happens to me, as I usually only carry a rekordbox-ready USB to play with CDJs. But at friends' houses, some have Traktor or other systems.
 
-With this, you can easily convert your playlists on the fly, avoiding having duplicated audio files and just referencing them from existing rekordbox playlists. So you only sync once with rekordbox, then this translates that to other compatible playlists formats.
+With this, you can easily convert your playlists on the fly. By default it avoids
+duplicating audio files and just references the existing Rekordbox playlist tracks. If you
+need a folder you can hand to someone else, the optional copy mode duplicates each selected
+playlist's audio into its own folder. So you only sync once with Rekordbox, then this
+translates that to other compatible playlist formats.
 
 ## How?
 
-This tool works by parsing the Rekordbox database file (`export.pdb`) and extracting the necessary information to create compatible playlists for other DJ software. Files are untouched. Rekordbox puts audio files in a specific folder structure, so this tool can easily locate them based on the metadata extracted from the database.
+This tool works by parsing the Rekordbox database file (`export.pdb`) and extracting the
+necessary information to create compatible playlists for other DJ software. By default the
+audio files are untouched and playlists reference the USB drive. With copy mode, the
+selected audio is copied — never modified — into per-playlist folders. Rekordbox puts audio
+files in a specific folder structure, so this tool can easily locate them based on the
+metadata extracted from the database.
 
 ## Acknowledgments
 

@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
+from ..models import ConversionResult, Playlist
+from ..paths import resolve_track_source
 from .base import BaseGenerator
-from ..models import Playlist, ConversionResult
 
 
 class M3U8Generator(BaseGenerator):
@@ -58,19 +59,14 @@ class M3U8Generator(BaseGenerator):
 
                 # Determine path type based on M3U-specific option
                 if self.config.m3u_absolute_paths:
-                    # Use absolute paths - construct full system path
-                    if usb_path and not track.file_path.is_absolute():
-                        # Remove leading slash from track path and join with USB path
-                        track_path_str = str(track.file_path)
-                        if track_path_str.startswith("/"):
-                            track_path_str = track_path_str[1:]
-                        full_path = usb_path / track_path_str
-                        track_path = str(full_path)
-                    else:
-                        track_path = str(track.file_path)
+                    track_path = str(
+                        resolve_track_source(track.file_path, usb_path)
+                    ).replace("\\", "/")
                 else:
-                    # Use relative paths - keep the original working logic
-                    track_path = self._normalize_path(track.file_path, output_path)
+                    track_path = self._normalize_path(
+                        resolve_track_source(track.file_path, usb_path),
+                        output_path.parent,
+                    )
 
                 # Note: No URL encoding needed for local file paths in M3U8
                 lines.append(track_path)

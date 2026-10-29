@@ -4,7 +4,7 @@
 > `ConversionConfig` fields.
 > **Read when:** adding or fixing an output format, changing filenames or paths, or
 > wiring a new option into the CLI/GUI.
-> **Last verified:** 2026-10-29 against `main` (`f27598a`).
+> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
 
 ## Base contract
 
@@ -61,9 +61,13 @@ always carries `BITRATE`, `GENRE`, `LABEL`, `COMMENT`, `RATING`, `FLAGS`, and `F
 - `_format_traktor_path()` normalizes a path to start with `/` and joins components with
   `/:`.
 - `_get_directory_path()` strips the filename portion.
-- `_generate_track_key()` uses the Windows drive letter, the macOS `/Volumes/<name>`, or
-  the USB path's final component, depending on input.
-- The `VOLUME` attribute is the Windows drive letter or the macOS/Linux USB volume name.
+- `_generate_track_key()` resolves the physical source, then prefers a path relative to
+  the supplied volume root (`usb_path` for normal conversion, the output root for copied
+  exports). It falls back to a Windows drive letter or macOS `/Volumes/<name>` only when
+  the source is outside that root.
+- `volume_name_for()` supplies the volume label: a Windows drive anchor (`D:`) or the
+  final component of the volume root (`USB`, or the export folder name for copied
+  exports).
 
 ### Musical keys
 
@@ -106,39 +110,37 @@ Remove those `print()` calls if you touch that function; library code should use
 - No URL encoding is applied; these are local file paths.
 - M3U writes ASCII. Non-ASCII artist/title text can raise `UnicodeEncodeError`, which the
   generator returns as a failed `ConversionResult`; use M3U8 for non-ASCII metadata.
-- M3U and M3U8 have slightly different absolute-path branches. Do not assume they are
-  identical implementations.
+- Both formats resolve absolute entries through `resolve_track_source()`; their only
+  material difference is encoding and M3U8's extra metadata labels.
 
 ## Path semantics
 
-`BaseGenerator._normalize_path(path, base_path)`:
+[ADR-0006](../adr/0006-path-semantics.md) is the source of truth.
 
 ```python
-if base_path and self.config.relative_paths:
-    try:
-        return str(path.relative_to(base_path)).replace("\\", "/")
-    except ValueError:
-        pass
-return str(path).replace("\\", "/")
+def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
+    if base_dir and self.config.relative_paths:
+        rel = relative_path_if_inside(path, base_dir)
+        if rel is not None:
+            return rel
+    return str(path).replace("\\", "/")
 ```
 
-The intent is relative paths for USB portability. **The current callers pass the output
-file as `base_path`**, so `track.file_path.relative_to(output_file)` usually raises
-`ValueError` and the function falls back to the absolute path. This is why “relative”
-output is not dependable.
+- Generators call `resolve_track_source(track.file_path, usb_path)` first. This turns a
+  PDB path such as `/Contents/Artist/Album/track.mp3` into a real file path on the
+  current machine.
+- Callers pass `output_path.parent` as `base_dir`. A track becomes relative only when it
+  is inside that directory; otherwise the generator writes an absolute path. No `../..`
+  escaping paths are emitted.
+- `m3u_absolute_paths` is an explicit absolute-path override for M3U/M3U8.
+- NML uses the same rule for `DIR`, and `_generate_track_key()` computes `PRIMARYKEY`
+  relative to the supplied volume root.
+- Copied exports pass the output root as `usb_path`, so their entries look like
+  `Set/track.mp3`; their NML volume is the output folder name (or the drive anchor on
+  Windows).
 
-Related issues:
-
-- `m3u_absolute_paths` is a separate switch from `relative_paths`; it is easy to create
-  contradictory settings.
-- The M3U branch strips a leading `/` and joins with `usb_path` when absolute paths are
-  requested; M3U8 only joins when `track.file_path` is not already absolute.
-- The TODO tracks “Fix relative/absolute in m3u8 (doing the same currently).”
-- A proposed ADR for path semantics is in `docs/adr/`; do not silently pick a new
-  contract without recording it.
-
-When touching paths, test all four combinations: relative/absolute × output inside/outside
-the USB root, on both a `/Volumes/...` path and a Windows drive-letter path.
+When touching paths, test relative and absolute modes with the output both inside and
+outside the USB root, on a `/Volumes/...` path and a Windows drive-letter path.
 
 ## `ConversionConfig` field status
 
@@ -146,16 +148,19 @@ Constructed in `cli.py`, `gui.py`, and `models.py` (defaults/`from_dict`).
 
 | Field | Read by | Status |
 |---|---|---|
-| `relative_paths` | `BaseGenerator`, NML | Live, but relative behavior is fragile |
+| `relative_paths` | `BaseGenerator`, NML | Live; relative only for tracks inside the output directory |
 | `preserve_folder_structure` | — | **Unused** |
 | `include_cue_points` | NML | Live, but no cue data is populated |
 | `include_loops` | — | **Unused**; GUI sets `False` |
 | `file_naming` | — | **Unused** |
 | `encoding` | — | **Unused**; writers choose encoding themselves |
-| `output_format` | CLI/GUI | Live; selects generators |
-| `use_format_suffix` | CLI/GUI | Live; filename construction |
+| `output_format` | CLI/GUI, `exporter.create_generators()` | Live; selects generators |
+| `use_format_suffix` | CLI/GUI, `exporter.build_output_filename()` | Live; filename construction |
 | `m3u_extended` | M3U/M3U8 | Live |
 | `m3u_absolute_paths` | M3U/M3U8 | Live |
+| `copy_files` | CLI/GUI, `exporter` | Live; enables per-playlist audio copying |
+| `number_files` | CLI/GUI, `exporter`/`copier` | Live; applies only when copying |
+| `overwrite_files` | CLI/GUI, `exporter`/`copier` | Live; applies only when copying |
 
 Do not add a new field without wiring it into both interfaces and documenting whether a
 generator actually reads it. `from_dict()` silently ignores unknown keys.
@@ -164,8 +169,8 @@ generator actually reads it. `from_dict()` silently ignores unknown keys.
 
 1. Create `src/universal_dj_usb/generators/<format>.py` with a `BaseGenerator` subclass.
 2. Export it from `generators/__init__.py`.
-3. Add the format to the CLI `--format` choices and generator branch.
-4. Add it to the GUI format combo, label map, and `ConversionWorker.run()`.
+3. Add the format to the CLI `--format` choices and `exporter.create_generators()`.
+4. Add it to the GUI format combo and label map; the shared exporter handles the rest.
 5. Add any new options to `ConversionConfig` and wire them into both interfaces.
 6. Write a generator test that builds `Track`/`Playlist` objects and uses `tmp_path`.
 7. Decide whether the format needs an ADR (new path/filename contract, new metadata).
@@ -177,5 +182,6 @@ generator actually reads it. `from_dict()` silently ignores unknown keys.
 - [ ] NML paths use `/:` and a sensible `VOLUME`.
 - [ ] M3U is ASCII; M3U8 is UTF-8.
 - [ ] Relative and absolute modes were both exercised.
+- [ ] Copy mode points at the copied files under the playlist folder.
 - [ ] Missing duration/BPM/key does not crash the generator.
 - [ ] A failed generation returns `ConversionResult(success=False)`.

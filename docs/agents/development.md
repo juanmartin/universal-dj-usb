@@ -3,7 +3,7 @@
 > **Scope:** local setup, commands, test strategy, linting, and debugging.
 > **Read when:** setting up the repo, adding tests, running checks, or investigating a
 > local failure.
-> **Last verified:** 2026-10-29 against `main` (`f27598a`).
+> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
 
 ## Setup
 
@@ -27,13 +27,15 @@ uv sync --dev
 uv run udj --help
 uv run udj detect /path/to/usb
 uv run udj list-playlists /path/to/usb
-uv run udj convert /path/to/usb -f all -o ./out --debug
+uv run udj --debug convert /path/to/usb -f all -o ./out
+uv run udj convert /path/to/usb -p "Set" -o ./out -f m3u8 --copy-files
+uv run udj copy-files /path/to/usb ./out -p "Set"
 uv run udj info /path/to/usb "Playlist Name"
 uv run udj-gui
 ```
 
-`--debug` enables parser/CLI logging. Normal mode suppresses parser INFO messages and
-shows warnings/errors only.
+`--debug` is a global option (`udj --debug ...`) that enables parser/CLI logging. Normal
+mode suppresses parser INFO messages and shows warnings/errors only.
 
 The GUI does not auto-scan on launch. Click **Refresh USB Drives**; a drive with
 `PIONEER/rekordbox/export.pdb` is selected automatically after the scan. Playlist parsing
@@ -63,13 +65,19 @@ uv run mypy src/
 
 ## Testing reality
 
-The suite is small: **5 tests and roughly 14% coverage**. It does not exercise parsing or
-generation end-to-end.
+The suite is **40 tests and roughly 29% coverage**. It covers synthetic parsing helpers,
+generator path modes, the copier/exporter, and the CLI copy workflows. It does not
+exercise the Kaitai parser end-to-end or a real Rekordbox USB drive.
 
-- `tests/test_generators.py` only asserts `file_extension` values.
+- `tests/test_generators.py` covers extensions plus relative/absolute output paths.
+- `tests/test_copier.py` covers naming, numbering, collisions, skip/overwrite, duplicates,
+  and missing files.
+- `tests/test_exporter.py` covers copy + M3U8/NML, numbering, missing-track exclusion,
+  copy-only, and duplicate playlist names.
+- `tests/test_cli.py` covers `copy-files`, `convert --copy-files`, and flag validation.
 - `tests/test_parser.py` checks `find_pdb_file()` and constructor state using mocks.
 - There is no committed PDB fixture; `*.pdb` is git-ignored.
-- No copyrighted audio should be committed.
+- No copyrighted audio should be committed; tests write tiny dummy bytes to `tmp_path`.
 
 ### Adding useful tests
 
@@ -103,7 +111,7 @@ For a manual smoke test, use a real Rekordbox USB drive:
 ```bash
 uv run udj detect /Volumes/USB
 uv run udj list-playlists /Volumes/USB
-uv run udj convert /Volumes/USB -f all -o /tmp/udj-out --debug
+uv run udj --debug convert /Volumes/USB -f all -o /tmp/udj-out
 ```
 
 Check the generated files with `scripts/compare_nml_files.py` when comparing encoding,
@@ -126,16 +134,17 @@ line endings, or formatting against a reference NML.
 ### Add a CLI option
 
 1. Add the Click option in `cli.py`.
-2. Add it to `ConversionConfig` if it affects generation.
-3. Wire it into the GUI if it is user-facing.
-4. Add a test or a manual command example; update the relevant topic doc.
+2. Add it to `ConversionConfig` if it affects export behavior.
+3. Read it in `exporter.py`/`copier.py` or the relevant generator.
+4. Wire it into the GUI if it is user-facing.
+5. Add a test or a manual command example; update the relevant topic doc.
 
 ### Add a GUI option
 
 1. Add the widget in `gui.py`.
 2. Read it in `_create_conversion_config()`.
-3. Ensure `ConversionWorker.run()` or the selected generator consumes it.
-4. Verify the conversion button state and format visibility logic still work.
+3. Ensure `export_playlists()` or the selected generator consumes it.
+4. Verify the conversion/copy button state and format visibility logic still work.
 
 ### Change a model field
 

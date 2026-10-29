@@ -2,9 +2,10 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
+from typing import Optional
 
-from ..models import Playlist, ConversionConfig, ConversionResult
+from ..models import ConversionConfig, ConversionResult, Playlist
+from ..paths import relative_path_if_inside, sanitize_filename
 
 
 class BaseGenerator(ABC):
@@ -29,27 +30,16 @@ class BaseGenerator(ABC):
 
     def _sanitize_filename(self, name: str) -> str:
         """Sanitize a filename for cross-platform compatibility."""
-        # Replace invalid characters
-        invalid_chars = '<>:"/\\|?*'
-        for char in invalid_chars:
-            name = name.replace(char, "_")
+        return sanitize_filename(name)
 
-        # Trim whitespace and dots
-        name = name.strip().strip(".")
+    def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
+        """Normalize a path for cross-platform playlist output.
 
-        # Ensure it's not empty
-        if not name:
-            name = "playlist"
-
-        return name
-
-    def _normalize_path(self, path: Path, base_path: Path = None) -> str:
-        """Normalize file path for cross-platform compatibility."""
-        if base_path and self.config.relative_paths:
-            try:
-                rel_path = path.relative_to(base_path)
-                return str(rel_path).replace("\\", "/")
-            except ValueError:
-                # Fallback to absolute path if relative fails
-                pass
+        Relative paths are emitted only when *path* is inside *base_dir*.
+        Callers pass the playlist file's parent directory.
+        """
+        if base_dir and self.config.relative_paths:
+            rel_path = relative_path_if_inside(path, base_dir)
+            if rel_path is not None:
+                return rel_path
         return str(path).replace("\\", "/")
