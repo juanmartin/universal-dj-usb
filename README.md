@@ -203,6 +203,12 @@ uv run isort src/
 uv run flake8 src/
 ```
 
+### AI agent documentation
+
+AI coding agents should start with [`AGENTS.md`](AGENTS.md). It routes to focused docs in
+[`docs/agents/`](docs/agents/) for architecture, parsing, generators, development,
+build/release, and known pitfalls, plus durable decisions in [`docs/adr/`](docs/adr/).
+
 ### Running Tests
 
 ```bash
@@ -238,7 +244,7 @@ This tool works by parsing the Rekordbox database file (`export.pdb`) and extrac
 
 - This project uses Kaitai Struct definitions for parsing Rekordbox PDB files
 - Thanks to the guys at [Deep-Symmetry](https://github.com/Deep-Symmetry/) for reverse engineering the Rekordbox format. Check out their [crate-digger](https://github.com/Deep-Symmetry/crate-digger/tree/main). I found about this from using [Mixxx](https://github.com/mixxxdj/mixxx/tree/main) DJ software and seeing it could parse playlists from a rekordbox-ready USB. This would not be possible without their work.
-- Built with Python, Click, Rich, and lxml
+- Built with Python, Click, Rich, and PySide6
 
 ## Troubleshooting
 
