@@ -106,8 +106,9 @@ A macOS `.app` `tar.gz` is created only as a fallback when a DMG is missing. The
 
 `.github/workflows/release.yml`:
 
-- Runs after a successful **Build** run, or manually with a tag (and optional build run
-  id).
+- Runs after a successful **tag-driven** Build run, or manually with a tag (and optional
+  build run id). PR and manually dispatched Build runs are ignored so they cannot create
+  draft releases.
 - Downloads the Build artifacts.
 - Regenerates `CHANGELOG.md` with `git-cliff` (`cliff.toml`) and commits it if changed.
 - Creates a **draft** GitHub Release, attaching all artifacts.
