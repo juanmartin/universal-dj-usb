@@ -103,8 +103,8 @@ the user's uncommitted work first.
   `--both`.
 - `udj_cli_macos.spec` is onefile despite its “onedir” header comment.
 - `SPEC_FILES.md` repeats the stale macOS CLI onedir claim.
-- `udj_gui_macos.spec` hardcodes `CFBundleVersion`/`CFBundleShortVersionString` to
-  `0.1.0`; `pyproject.toml` is the real version source.
+- `udj_gui_macos.spec` reads `CFBundleVersion`/`CFBundleShortVersionString` from
+  `pyproject.toml`; run PyInstaller from the repository root so the file resolves.
 - CI uploads the raw macOS `udj` binary, not the local CLI `tar.gz`; a `.app` `tar.gz` is
   only a no-DMG fallback.
 - `scripts/cleanup_qt_frameworks.py` removes QtQml/QtQuick/QtNetwork/QtOpenGL even though

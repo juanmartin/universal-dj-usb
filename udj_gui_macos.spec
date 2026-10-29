@@ -4,6 +4,13 @@ PyInstaller spec file for Universal DJ USB GUI - macOS
 Optimized for macOS app bundle (onedir)
 """
 
+from pathlib import Path
+import tomllib
+
+APP_VERSION = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))[
+    "project"
+]["version"]
+
 # Qt modules to exclude - these are not used by our GUI
 qt_excludes = [
     'PySide6.QtNetwork',
@@ -156,8 +163,8 @@ app = BUNDLE(
     icon='src/universal_dj_usb/assets/icons/icono_1024x1024_1024x1024.icns',
     bundle_identifier='art.juanm.udj',
     info_plist={
-        'CFBundleShortVersionString': '0.1.0',
-        'CFBundleVersion': '0.1.0',
+        'CFBundleShortVersionString': APP_VERSION,
+        'CFBundleVersion': APP_VERSION,
         'CFBundleDisplayName': 'Universal DJ USB',
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,

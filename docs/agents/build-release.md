@@ -2,7 +2,7 @@
 
 > **Scope:** PyInstaller specs, platform builds, versioning, CI, and release artifacts.
 > **Read when:** changing packaging, CI, versioning, or platform support.
-> **Last verified:** 2026-10-29 against `main` (`f27598a`).
+> **Last verified:** 2026-10-29 against `feature/copy-playlist-files`.
 
 ## Local builds
 
@@ -60,21 +60,20 @@ a Linux release artifact without adding and testing a real spec/build path.
 
 ## Versioning
 
-- `pyproject.toml` is the source of truth (`version = "0.2.2"`).
+- `pyproject.toml` is the source of truth (`version = "0.3.0"`).
 - `universal_dj_usb.__init__._get_version()` reads `pyproject.toml` first, then installed
   package metadata, then falls back to `0.0.0`.
-- `udj_gui_macos.spec` hardcodes `CFBundleShortVersionString` and `CFBundleVersion` to
-  `0.1.0`. This is a known bug in `TODO.md`; do not assume the `.app` version follows
-  `pyproject.toml` until it is fixed.
+- `udj_gui_macos.spec` reads `APP_VERSION` from `pyproject.toml` and uses it for
+  `CFBundleShortVersionString` and `CFBundleVersion`; build from the repository root.
 - `scripts/release.sh` updates `pyproject.toml`, runs `uv sync` so `uv.lock` is current,
   commits both, creates `vX.Y.Z`, and pushes with tags.
 
 ## Release process
 
 ```bash
-scripts/release.sh patch       # 0.2.2 -> 0.2.3
-scripts/release.sh minor       # 0.2.2 -> 0.3.0
-scripts/release.sh major       # 0.2.2 -> 1.0.0
+scripts/release.sh patch       # 0.3.0 -> 0.3.1
+scripts/release.sh minor       # 0.3.0 -> 0.4.0
+scripts/release.sh major       # 0.3.0 -> 1.0.0
 scripts/release.sh 1.0.0-rc.1  # explicit version
 ```
 
@@ -145,7 +144,7 @@ without changing the dependency and lockfile. This is tracked as a proposed ADR.
 ## Build/release checklist
 
 - [ ] Version in `pyproject.toml` is intentional and `uv.lock` is synced.
-- [ ] `CFBundleVersion` TODO was considered if shipping macOS.
+- [ ] The `.app` version matches `pyproject.toml` when shipping macOS.
 - [ ] The correct spec is used for the platform.
 - [ ] `--clean` was combined with a build target on macOS.
 - [ ] The generated `.app`/`.exe` was launched, not just built.

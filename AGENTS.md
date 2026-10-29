@@ -20,7 +20,7 @@ M3U, and M3U8, without touching the audio files.
 - **GUI:** `udj-gui` → `universal_dj_usb.gui:main` (PySide6/Qt6)
 - **Runtime:** Python 3.11–3.12, managed with `uv`
 - **Packaging:** PyInstaller; portable builds for macOS and Windows
-- **Version source of truth:** `pyproject.toml` (currently `0.2.2`)
+- **Version source of truth:** `pyproject.toml` (currently `0.3.0`)
 
 ## 2. Non-negotiables
 
@@ -91,7 +91,7 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
   it is implemented and awaiting merge. Follow
   [docs/plans/copy-playlist-files.md](docs/plans/copy-playlist-files.md) for the final
   checklist. Remove this pointer when merged.
-- Version is `0.2.2`; the macOS app bundle still hardcodes `0.1.0` until the TODO is fixed.
+- Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
 - [ADR-0006](docs/adr/0006-path-semantics.md) defines the path contract. Generators
