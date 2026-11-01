@@ -27,7 +27,7 @@ A tool for converting playlists present in Rekordbox-ready USB drives to various
 - **Multiple output formats**: Convert to Traktor NML, M3U, or M3U8 playlists
 - **Cross-platform**: Works on Windows, macOS, and Linux
 - **Preserve metadata**: Keep track information, BPM, Key
-- **Flexible paths**: Support for both relative and absolute file paths
+- **Flexible M3U/M3U8 paths**: Support for both relative and absolute playlist paths
 - **Portable exports**: Optionally copy each playlist's audio into per-playlist folders
   with relative playlist paths, or number files to preserve playlist order
 - **Playlist filtering**: Convert specific playlists or all playlists at once
@@ -85,6 +85,9 @@ OUT/
 
 Playlist files stay in `OUT/`; each playlist's audio goes in its own folder. Existing files
 are skipped unless you enable overwrite.
+
+NML paths are always relative to the Traktor volume. Use M3U/M3U8 for portable playlists
+whose paths are relative to the export folder.
 
 ### CLI Usage
 
@@ -144,7 +147,7 @@ Options:
   -o, --output PATH           Output directory for playlist files
   -p, --playlist TEXT         Specific playlist names to convert (multiple allowed)
   -f, --format [nml|m3u|m3u8|all]  Output format (default: nml)
-  --relative-paths/--absolute-paths  Use relative or absolute file paths (default: relative)
+  --relative-paths/--absolute-paths  Use relative or absolute paths in M3U/M3U8 files (default: relative)
   --copy-files                Copy each playlist's audio into a per-playlist folder
   --number-files              Prefix copied filenames with playlist order (requires --copy-files)
   --overwrite                 Overwrite existing copied files instead of skipping

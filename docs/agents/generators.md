@@ -4,7 +4,7 @@
 > `ConversionConfig` fields.
 > **Read when:** adding or fixing an output format, changing filenames or paths, or
 > wiring a new option into the CLI/GUI.
-> **Last verified:** 2026-10-29 against `dev`.
+> **Last verified:** 2026-11-01 against `dev`.
 
 ## Base contract
 
@@ -56,15 +56,19 @@ always carries `BITRATE`, `GENRE`, `LABEL`, `COMMENT`, `RATING`, `FLAGS`, and `F
 ### Traktor paths
 
 - Traktor track keys look like `VOLUME/:Contents/:Artist/:Album/:track.mp3`.
-- `LOCATION` separates the volume, directory, and filename: `VOLUME="USB"`,
+- `LOCATION` is volume-relative: `VOLUME="USB"`,
   `DIR="/:Contents/:Artist/:Album/"`, `FILE="track.mp3"`.
 - `_format_traktor_path()` normalizes a path to start with `/` and joins components with
   `/:`.
 - `_get_directory_path()` strips the filename portion.
-- `_generate_track_key()` resolves the physical source, then prefers a path relative to
-  the supplied volume root (`usb_path` for normal conversion, the output root for copied
-  exports). It falls back to a Windows drive letter or macOS `/Volumes/<name>` only when
-  the source is outside that root.
+- `_volume_relative_path()` returns `(volume, relative_path)`. It prefers the supplied
+  volume root (`usb_path` for normal conversion, the output root for copied exports), then
+  falls back to a macOS `/Volumes/<name>` volume or a Windows drive anchor.
+- `_generate_track_key()` and `_add_track_to_collection()` use that same pair, so
+  `LOCATION/DIR` and `PRIMARYKEY` cannot disagree. `LOCATION/FILE` uses the resolved source
+  filename, not the raw PDB path.
+- NML ignores `relative_paths` and `m3u_absolute_paths`; Traktor has no playlist-relative
+  path model. See [ADR-0009](../adr/0009-nml-volume-relative-paths.md).
 - `volume_name_for()` supplies the volume label: a Windows drive anchor (`D:`) or the
   final component of the volume root (`USB`, or the export folder name for copied
   exports).
@@ -82,17 +86,10 @@ The generator can write `CUE_V2` entries if `track.cue_points` is populated and
 `config.include_cue_points` is true. The parser never populates cue points today, so this
 is effectively dormant. `include_loops` is not read by the generator.
 
-### Known debug noise
+### Logging
 
-`_add_track_to_collection()` still prints:
-
-```text
-DEBUG: Track key = ...
-DEBUG: Traktor key number = ...
-```
-
-Remove those `print()` calls if you touch that function; library code should use
-`logging`.
+`_add_track_to_collection()` must not print to stdout; library output belongs in the
+CLI/GUI logger.
 
 ## M3U and M3U8
 
@@ -115,7 +112,8 @@ Remove those `print()` calls if you touch that function; library code should use
 
 ## Path semantics
 
-[ADR-0006](../adr/0006-path-semantics.md) is the source of truth.
+[ADR-0006](../adr/0006-path-semantics.md) is the source of truth for M3U/M3U8.
+[ADR-0009](../adr/0009-nml-volume-relative-paths.md) governs NML.
 
 ```python
 def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
@@ -129,15 +127,15 @@ def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
 - Generators call `resolve_track_source(track.file_path, usb_path)` first. This turns a
   PDB path such as `/Contents/Artist/Album/track.mp3` into a real file path on the
   current machine.
-- Callers pass `output_path.parent` as `base_dir`. A track becomes relative only when it
-  is inside that directory; otherwise the generator writes an absolute path. No `../..`
-  escaping paths are emitted.
+- M3U/M3U8 callers pass `output_path.parent` as `base_dir`. A track becomes relative only
+  when it is inside that directory; otherwise the generator writes an absolute path. No
+  `../..` escaping paths are emitted.
 - `m3u_absolute_paths` is an explicit absolute-path override for M3U/M3U8.
-- NML uses the same rule for `DIR`, and `_generate_track_key()` computes `PRIMARYKEY`
-  relative to the supplied volume root.
-- Copied exports pass the output root as `usb_path`, so their entries look like
+- NML ignores `relative_paths`. `LOCATION/DIR` and `PRIMARYKEY` are always derived from
+  the same `(volume, relative_path)` pair.
+- Copied exports pass the output root as `usb_path`, so their M3U entries look like
   `Set/track.mp3`; their NML volume is the output folder name (or the drive anchor on
-  Windows).
+  Windows). The NML pseudo-volume remains best-effort for internal disks.
 
 When touching paths, test relative and absolute modes with the output both inside and
 outside the USB root, on a `/Volumes/...` path and a Windows drive-letter path.
@@ -148,7 +146,7 @@ Constructed in `cli.py`, `gui.py`, and `models.py` (defaults/`from_dict`).
 
 | Field | Read by | Status |
 |---|---|---|
-| `relative_paths` | `BaseGenerator`, NML | Live; relative only for tracks inside the output directory |
+| `relative_paths` | `BaseGenerator` (M3U/M3U8) | Live; relative only for tracks inside the output directory. NML ignores it |
 | `preserve_folder_structure` | — | **Unused** |
 | `include_cue_points` | NML | Live, but no cue data is populated |
 | `include_loops` | — | **Unused**; GUI sets `False` |
@@ -179,7 +177,8 @@ generator actually reads it. `from_dict()` silently ignores unknown keys.
 
 - [ ] Filename sanitization still handles `<>:"/\|?*` and empty names.
 - [ ] `use_format_suffix` produces e.g. `Playlist_nml.nml`, not `Playlist.nml_nml`.
-- [ ] NML paths use `/:` and a sensible `VOLUME`.
+- [ ] NML paths use `/:`, `LOCATION/DIR` and `PRIMARYKEY` share the same volume-relative
+      path, and `FILE` uses the resolved filename.
 - [ ] M3U is ASCII; M3U8 is UTF-8.
 - [ ] Relative and absolute modes were both exercised.
 - [ ] Copy mode points at the copied files under the playlist folder.

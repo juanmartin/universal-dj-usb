@@ -3,7 +3,7 @@
 > **Scope:** local setup, commands, test strategy, linting, and debugging.
 > **Read when:** setting up the repo, adding tests, running checks, or investigating a
 > local failure.
-> **Last verified:** 2026-10-29 against `dev`.
+> **Last verified:** 2026-11-01 against `dev`.
 
 ## Setup
 
@@ -65,15 +65,17 @@ uv run mypy src/
 
 ## Testing reality
 
-The suite is **40 tests and roughly 29% coverage**. It covers synthetic parsing helpers,
+The suite is **47 tests and roughly 28% coverage**. It covers synthetic parsing helpers,
 generator path modes, the copier/exporter, and the CLI copy workflows. It does not
 exercise the Kaitai parser end-to-end or a real Rekordbox USB drive.
 
 - `tests/test_generators.py` covers extensions plus relative/absolute output paths.
 - `tests/test_copier.py` covers naming, numbering, collisions, skip/overwrite, duplicates,
   and missing files.
+- `tests/test_generators.py` covers extensions, M3U/M3U8 relative/absolute paths, and NML
+  volume-relative, Unicode, and Windows-separator paths.
 - `tests/test_exporter.py` covers copy + M3U8/NML, numbering, missing-track exclusion,
-  copy-only, and duplicate playlist names.
+  copy-only, duplicate playlist names, and normal NML export.
 - `tests/test_cli.py` covers `copy-files`, `convert --copy-files`, and flag validation.
 - `tests/test_parser.py` checks `find_pdb_file()` and constructor state using mocks.
 - There is no committed PDB fixture; `*.pdb` is git-ignored.

@@ -3,7 +3,7 @@
 > **Scope:** component map, data flow, module contracts, and extension points.
 > **Read when:** changing multiple modules, adding an interface or output format, or
 > onboarding to the codebase.
-> **Last verified:** 2026-10-29 against `dev`.
+> **Last verified:** 2026-11-01 against `dev`.
 
 ## Component map
 
@@ -141,7 +141,8 @@ class SomeGenerator(BaseGenerator):
   whitespace.
 - `BaseGenerator._normalize_path()` converts to a path relative to the playlist file's
   parent only when `config.relative_paths` is true and the resolved track is inside that
-  directory; otherwise it returns the absolute path with forward slashes. See
+  directory; otherwise it returns the absolute path with forward slashes. This applies to
+  M3U/M3U8; NML is always volume-relative. See
   [generators.md](generators.md#path-semantics).
 - Generators return a failed `ConversionResult` instead of raising to the interface.
 

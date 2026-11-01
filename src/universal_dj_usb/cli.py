@@ -204,7 +204,7 @@ def _print_copy_summary(export_result: ExportResult) -> None:
 @click.option(
     "--relative-paths/--absolute-paths",
     default=True,
-    help="Use relative or absolute file paths",
+    help="Use relative or absolute paths in M3U/M3U8 files",
 )
 @click.option(
     "--use-format-suffix",
