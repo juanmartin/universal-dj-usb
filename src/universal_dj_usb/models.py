@@ -139,7 +139,7 @@ class PlaylistTree:
 class ConversionConfig:
     """Configuration for playlist conversion."""
 
-    relative_paths: bool = True
+    relative_paths: bool = True  # M3U/M3U8 relative paths; NML is volume-relative
     preserve_folder_structure: bool = True
     include_cue_points: bool = True
     include_loops: bool = True

@@ -148,8 +148,8 @@ In the Conversion Options tab:
 - [x] `BaseGenerator._normalize_path`: use the playlist file's parent; relative only when
       the track is inside it, otherwise absolute.
 - [x] M3U and M3U8 pass the parent directory and keep `m3u_absolute_paths` as override.
-- [x] NML uses the same base for `DIR` and computes `PRIMARYKEY` relative to the supplied
-      volume root when the track is inside it.
+- [x] NML now uses volume-relative `LOCATION/DIR` and `PRIMARYKEY`; see
+      [ADR-0009](../adr/0009-nml-volume-relative-paths.md). Legacy behavior was superseded.
 - [x] Test output inside and outside the USB root.
 
 ### 4. CLI
@@ -182,7 +182,7 @@ In the Conversion Options tab:
 
 ### 7. Verification and close-out
 
-- [x] `uv run pytest` (40 tests pass)
+- [x] `uv run pytest` (47 tests pass)
 - [x] `black` / `isort` on new files and tests
 - [ ] `uv run flake8 src/ tests/` (repo has pre-existing lint debt; new files pass
       `flake8 --max-line-length=88`, touched legacy files retain pre-existing warnings)

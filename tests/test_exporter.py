@@ -143,6 +143,27 @@ def test_no_copy_export_keeps_original_track_paths(tmp_path):
     assert not (output / "Set").exists()
 
 
+def test_no_copy_nml_export_uses_usb_relative_location(tmp_path):
+    """Normal NML export must not put the absolute USB path in LOCATION/DIR."""
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="Set", tracks=[_track(usb, "Contents/Artist/Album/song.mp3")]
+    )
+    output = tmp_path / "export"
+    config = ConversionConfig(output_format="nml")
+
+    result = export_playlists([playlist], usb, output, config)
+    text = (output / "Set.nml").read_text(encoding="utf-8")
+    volume = volume_name_for(usb)
+
+    assert result.success
+    assert f'VOLUME="{volume}"' in text
+    assert 'DIR="/:Contents/:Artist/:Album/:"' in text
+    assert 'FILE="song.mp3"' in text
+    assert f"{volume}/:Contents/:Artist/:Album/:song.mp3" in text
+    assert str(usb) not in text
+
+
 def test_convert_and_copy_writes_all_requested_formats(tmp_path):
     usb = _make_usb(tmp_path)
     playlist = Playlist(name="Set", tracks=[_track(usb, "Contents/song.mp3")])

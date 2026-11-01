@@ -103,11 +103,6 @@ class NMLGenerator(BaseGenerator):
             # Ensure output directory exists
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # Extract volume name from USB/export path
-            volume_name = ""
-            if usb_path:
-                volume_name = volume_name_for(usb_path)
-
             # Create NML structure
             nml_root = ET.Element("NML", VERSION="19")
 
@@ -131,9 +126,7 @@ class NMLGenerator(BaseGenerator):
 
             # Add all tracks to collection
             for track in playlist.tracks:
-                self._add_track_to_collection(
-                    collection, track, output_path, warnings, volume_name, usb_path
-                )
+                self._add_track_to_collection(collection, track, warnings, usb_path)
 
             # Add empty SETS section
             sets = ET.SubElement(nml_root, "SETS", ENTRIES="0")
@@ -226,21 +219,16 @@ class NMLGenerator(BaseGenerator):
         self,
         collection: ET.Element,
         track: Track,
-        output_path: Path,
         warnings: list,
-        volume_name: str = "",
         usb_path: Path = None,
     ) -> None:
         """Add a track entry to the collection."""
-        # Resolve the physical source, then make it relative when possible.
+        # Resolve the physical source and derive Traktor's volume-relative path.
         absolute_file_path = resolve_track_source(track.file_path, usb_path)
-        if self.config.relative_paths:
-            file_path = self._normalize_path(absolute_file_path, output_path.parent)
-        else:
-            file_path = self._normalize_path(absolute_file_path)
-
-        # Convert to Traktor path format
-        traktor_path = self._format_traktor_path(file_path)
+        volume_name, relative_path = self._volume_relative_path(
+            absolute_file_path, usb_path
+        )
+        traktor_path = self._format_traktor_path(relative_path)
 
         # Check if file exists (only add warning for debug purposes)
         if not absolute_file_path.exists():
@@ -260,12 +248,12 @@ class NMLGenerator(BaseGenerator):
 
         entry = ET.SubElement(collection, "ENTRY", **entry_attribs)
 
-        # Location with volume information
+        # Location with volume information. DIR is relative to VOLUME.
         location = ET.SubElement(
             entry,
             "LOCATION",
             DIR=self._get_directory_path(traktor_path),
-            FILE=track.filename,
+            FILE=absolute_file_path.name or track.filename,
             VOLUME=volume_name,
         )
 
@@ -311,9 +299,7 @@ class NMLGenerator(BaseGenerator):
             key_string = (
                 track.key.value if hasattr(track.key, "value") else str(track.key)
             )
-            print(f"DEBUG: Track key = {key_string}")  # Debug
             traktor_key_number = self._get_traktor_key_number(key_string)
-            print(f"DEBUG: Traktor key number = {traktor_key_number}")  # Debug
             if traktor_key_number:
                 ET.SubElement(entry, "MUSICAL_KEY", VALUE=str(traktor_key_number))
             else:
@@ -361,11 +347,12 @@ class NMLGenerator(BaseGenerator):
         # Split the path into parts, removing empty parts
         parts = [part for part in path_str.split("/") if part]
 
+        # A filename in the volume root has an empty directory portion.
+        if len(parts) <= 1:
+            return "/:"
+
         # Join with /: separator and add leading /: and trailing /:
-        if parts:
-            return "/:" + "/:".join(parts[:-1]) + "/:"
-        else:
-            return ""
+        return "/:" + "/:".join(parts[:-1]) + "/:"
 
     def _get_directory_path(self, traktor_path: str) -> str:
         """Get the directory portion of a Traktor path."""
@@ -384,33 +371,40 @@ class NMLGenerator(BaseGenerator):
 
         return str(uuid.uuid4()).replace("-", "").lower()
 
+    def _volume_relative_path(
+        self, source: Path, usb_path: Optional[Path] = None
+    ) -> tuple[str, str]:
+        """Return the Traktor volume name and path relative to that volume.
+
+        Traktor NML paths are always volume-relative. The supplied USB or export
+        root is used as the preferred volume root; tracks outside it fall back to
+        their own mounted volume (for example ``/Volumes/Other`` or ``D:``).
+        """
+        if usb_path is not None:
+            relative = relative_path_if_inside(source, usb_path)
+            if relative is not None:
+                return volume_name_for(usb_path), relative
+
+        parts = source.parts
+        if len(parts) >= 3 and parts[1] == "Volumes":
+            return parts[2], "/".join(parts[3:])
+
+        if platform.system() == "Windows" and source.anchor:
+            volume = source.anchor.rstrip("\\/")
+            anchor_length = len(source.anchor)
+            relative = source.as_posix()[anchor_length:].lstrip("/")
+            return volume, relative
+
+        return "", source.as_posix().lstrip("/")
+
     def _generate_track_key(self, track: Track, usb_path: Path = None) -> str:
         """Generate a track key for Traktor using proper NML path formatting."""
         source = resolve_track_source(track.file_path, usb_path)
+        volume, relative = self._volume_relative_path(source, usb_path)
 
-        # Prefer a path relative to the supplied volume/export root.
-        if usb_path:
-            relative = relative_path_if_inside(source, usb_path)
-            if relative is not None:
-                volume = volume_name_for(usb_path)
-                return f"{volume}/:{relative.replace('/', '/:')}"
-
-        # macOS/Linux volume path: /Volumes/<name>/...
-        parts = source.parts
-        if len(parts) >= 3 and parts[1] == "Volumes":
-            volume = parts[2]
-            relative = "/".join(parts[3:])
+        if volume:
             if relative:
                 return f"{volume}/:{relative.replace('/', '/:')}"
             return volume
 
-        # Windows drive path: C:/...
-        if platform.system() == "Windows" and source.anchor:
-            drive = source.anchor.rstrip("\\/")
-            relative = source.as_posix()[len(source.anchor) :].lstrip("/")
-            if relative:
-                return f"{drive}/:{relative.replace('/', '/:')}"
-            return drive
-
-        # Last resort: emit the path without a volume prefix.
-        return source.as_posix().lstrip("/")
+        return relative.replace("/", "/:")

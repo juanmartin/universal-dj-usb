@@ -365,6 +365,10 @@ class MainWindow(QMainWindow):
 
         # M3U Options (shown conditionally)
         self.m3u_group = QGroupBox("M3U/M3U8 Options")
+        self.m3u_group.setToolTip(
+            "Path type applies to M3U/M3U8 only. NML paths are always relative "
+            "to the Traktor volume."
+        )
         m3u_layout = QGridLayout(self.m3u_group)
 
         self.m3u_extended_checkbox = QCheckBox("Use extended format (with metadata)")
@@ -372,11 +376,21 @@ class MainWindow(QMainWindow):
         m3u_layout.addWidget(self.m3u_extended_checkbox, 0, 0, 1, 2)
 
         # Path type radio buttons
-        m3u_layout.addWidget(QLabel("Path Type:"), 1, 0)
+        path_type_label = QLabel("Path Type:")
+        path_type_label.setToolTip(
+            "Applies to M3U/M3U8 only. NML uses Traktor volume-relative paths."
+        )
+        m3u_layout.addWidget(path_type_label, 1, 0)
 
         path_type_layout = QHBoxLayout()
         self.relative_paths_radio = QRadioButton("Relative paths")
+        self.relative_paths_radio.setToolTip(
+            "Use paths relative to the export folder when the track is inside it."
+        )
         self.absolute_paths_radio = QRadioButton("Absolute paths")
+        self.absolute_paths_radio.setToolTip(
+            "Always write absolute paths in M3U/M3U8 files."
+        )
         self.relative_paths_radio.setChecked(True)  # Default to relative
 
         path_type_layout.addWidget(self.relative_paths_radio)

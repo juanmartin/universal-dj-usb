@@ -3,7 +3,7 @@
 > **Scope:** dead code, stale docs, fragile behavior, and traps that are easy to repeat.
 > **Read when:** something behaves unexpectedly, docs disagree, or you are about to
 > “clean up” code that looks unused.
-> **Last verified:** 2026-10-29 against `dev`.
+> **Last verified:** 2026-11-01 against `dev`.
 
 ## Dead or misleading code
 
@@ -57,6 +57,8 @@ the user's uncommitted work first.
   `paths.resolve_track_source()` before checking existence, copying, or making them
   relative.
 - NML uses Traktor's `/:` separator and a `VOLUME` attribute, not just forward slashes.
+  `LOCATION/DIR` and `PRIMARYKEY` are always volume-relative and ignore
+  `relative_paths`/`m3u_absolute_paths` ([ADR-0009](../adr/0009-nml-volume-relative-paths.md)).
   For copied exports the output folder name becomes the pseudo-volume; that is best-effort
   for internal disks.
 - `Track.relative_path` only replaces backslashes; it does not compute a relative path.
@@ -90,7 +92,7 @@ the user's uncommitted work first.
 
 ## Testing
 
-- 40 tests, roughly 29% coverage; parser and most real-USB behavior are still untested.
+- 47 tests, roughly 28% coverage; parser and most real-USB behavior are still untested.
 - No PDB fixture; `*.pdb` is git-ignored.
 - Generator tests cover extensions plus relative/absolute path cases; copier/exporter/CLI
   tiny-file tests cover the copy workflow.
@@ -128,9 +130,6 @@ the user's uncommitted work first.
 
 ## Miscellaneous
 
-- NML still prints `DEBUG: Track key = ...` and `DEBUG: Traktor key number = ...` from
-  `_add_track_to_collection()`. Remove them if you touch that area.
 - `ConversionConfig.from_dict()` silently ignores unknown keys.
 - The `parse_playlists` method name appears only in dead GUI code; the real API is
   `RekordboxParser(pdb_path).parse()`.
-- The `.app` version and the Python package version can disagree until the spec is fixed.

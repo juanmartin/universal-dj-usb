@@ -1,7 +1,7 @@
 # AGENTS.md — Universal DJ USB
 
 > Canonical entry point for AI coding agents. Read this file first.
-> Last verified: 2026-10-29 against `dev` (`3d96047`).
+> Last verified: 2026-11-01 against `dev`.
 
 ## 0. Context budget
 
@@ -92,11 +92,11 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 - Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
-- [ADR-0006](docs/adr/0006-path-semantics.md) defines the path contract. Generators
-  resolve PDB paths to real files and only make them relative when the track is inside
-  the playlist file's directory.
+- [ADR-0006](docs/adr/0006-path-semantics.md) defines M3U/M3U8 path semantics;
+  [ADR-0009](docs/adr/0009-nml-volume-relative-paths.md) defines NML as always
+  volume-relative. Generators resolve PDB paths to real files first.
 - Cue points are modelled and NML can emit them, but no ANLZ extraction exists yet.
-- The test suite has 40 tests and roughly 29% coverage; passing tests do not prove parser
+- The test suite has 47 tests and roughly 28% coverage; passing tests do not prove parser
   behavior against a real PDB.
 
 ## 6. Decision protocol

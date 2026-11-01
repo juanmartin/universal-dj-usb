@@ -1,6 +1,6 @@
 # ADR-0006: Path Semantics
 
-- **Status:** Accepted
+- **Status:** Accepted; NML portion superseded by [ADR-0009](0009-nml-volume-relative-paths.md)
 - **Date:** 2026-10-29
 - **Related:** [`generators.md`](../agents/generators.md#path-semantics), [`pitfalls.md`](../agents/pitfalls.md#paths), [ADR-0008](0008-playlist-file-copy-layout.md)
 - **Supersedes:** —
