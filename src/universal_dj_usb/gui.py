@@ -365,14 +365,16 @@ class MainWindow(QMainWindow):
 
         # M3U Options (shown conditionally)
         self.m3u_group = QGroupBox("M3U/M3U8 Options")
-        self.m3u_group.setToolTip(
-            "Path type applies to M3U/M3U8 only. NML paths are always relative "
-            "to the Traktor volume."
-        )
+        self.m3u_group.setToolTip("Options for M3U/M3U8 playlist output.")
         m3u_layout = QGridLayout(self.m3u_group)
 
         self.m3u_extended_checkbox = QCheckBox("Use extended format (with metadata)")
         self.m3u_extended_checkbox.setChecked(True)
+        self.m3u_extended_checkbox.setToolTip(
+            "Writes the #EXTM3U header and #EXTINF lines with duration, artist, "
+            "and title (plus album/year/genre/BPM for M3U8). Uncheck only for "
+            "a plain path-only playlist for players that reject directives."
+        )
         m3u_layout.addWidget(self.m3u_extended_checkbox, 0, 0, 1, 2)
 
         # Path type radio buttons

@@ -103,6 +103,8 @@ CLI/GUI logger.
 | Relative paths | `_normalize_path(...)` | `_normalize_path(...)` |
 
 - `m3u_extended=False` writes paths only (no `#EXTINF` lines).
+- `m3u_extended` controls only the M3U/M3U8 directives. Metadata enhancement runs
+  independently; NML always carries track metadata.
 - Missing durations become `-1` in `#EXTINF`.
 - No URL encoding is applied; these are local file paths.
 - M3U writes ASCII. Non-ASCII artist/title text can raise `UnicodeEncodeError`, which the
