@@ -147,6 +147,7 @@ class ConversionConfig:
     encoding: str = "utf-8"
     output_format: str = "nml"  # nml, m3u, m3u8, or all
     use_format_suffix: bool = False  # Whether to append format suffix to filenames
+    separate_format_folders: bool = False  # Put playlists under PLAYLISTS/<FORMAT>/
     m3u_extended: bool = True  # Whether to use extended M3U format with metadata
     m3u_absolute_paths: bool = False  # Whether to use absolute paths in M3U files
     copy_files: bool = False  # Copy playlist audio into per-playlist folders

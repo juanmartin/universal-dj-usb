@@ -65,9 +65,12 @@ My usual workflow would be:
 2. Select the USB drive containing the Rekordbox playlists (will be detected automatically).
 3. Choose the desired output folder and format(s) and any specific playlists to convert.
 4. Optionally check **Copy audio files into per-playlist folders**.
-5. Click "Convert" and wait for the process to complete.
-6. Use **Open Folder** in the Output Settings or in the completion dialog to reveal the
-   playlist files and their audio folders.
+5. Optionally check **Put playlist files in PLAYLISTS/<format> folders** to keep NML,
+   M3U, and M3U8 files in separate subfolders.
+6. Click "Convert". The app switches to the log view, locks the controls, and shows
+   progress at the bottom. Use **Cancel** to stop after the current file.
+7. When the completion dialog appears, choose **OK** or **Open Folder**. The app returns
+   to the Conversion Options tab.
 
 Copied exports look like this:
 
@@ -85,6 +88,24 @@ OUT/
 
 Playlist files stay in `OUT/`; each playlist's audio goes in its own folder. Existing files
 are skipped unless you enable overwrite.
+
+With **Put playlist files in PLAYLISTS/<format> folders**, the layout becomes:
+
+```text
+OUT/
+├── Playlist A/
+│   └── track1.mp3
+└── PLAYLISTS/
+    ├── NML/
+    │   └── Playlist A.nml
+    ├── M3U/
+    │   └── Playlist A.m3u
+    └── M3U8/
+        └── Playlist A.m3u8
+```
+
+Copied audio stays shared at the output root. M3U/M3U8 use relative references such as
+`../../Playlist A/track1.mp3`; keep the whole `OUT` tree together when moving it.
 
 NML paths are always relative to the Traktor volume. Use M3U/M3U8 for portable playlists
 whose paths are relative to the export folder.
@@ -148,6 +169,7 @@ Options:
   -p, --playlist TEXT         Specific playlist names to convert (multiple allowed)
   -f, --format [nml|m3u|m3u8|all]  Output format (default: nml)
   --relative-paths/--absolute-paths  Use relative or absolute paths in M3U/M3U8 files (default: relative)
+  --separate-format-folders  Put playlist files in PLAYLISTS/<FORMAT>/ folders
   --copy-files                Copy each playlist's audio into a per-playlist folder
   --number-files              Prefix copied filenames with playlist order (requires --copy-files)
   --overwrite                 Overwrite existing copied files instead of skipping
@@ -170,7 +192,8 @@ Options:
 In convert+copy mode, playlist files are written in the output root, while audio goes in
 `OUTPUT/<playlist name>/`. `copy-files` only writes the audio folders. In the default
 relative mode, generated playlists reference the copied files whenever the files are inside
-the output directory.
+the output directory. With `--separate-format-folders`, playlists move to
+`OUTPUT/PLAYLISTS/<FORMAT>/` while copied audio stays shared.
 
 #### `info`
 

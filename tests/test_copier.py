@@ -157,3 +157,35 @@ def test_playlist_folder_is_sanitized(tmp_path):
 
     assert result.destination_folder == tmp_path / "export" / "A_B"
     assert (tmp_path / "export" / "A_B" / "song.mp3").exists()
+
+
+def test_cancellation_stops_between_files(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="Set",
+        tracks=[
+            _track(usb, "Contents/one.mp3", "One"),
+            _track(usb, "Contents/two.mp3", "Two"),
+        ],
+    )
+    output = tmp_path / "export"
+    checks = 0
+
+    def is_cancelled() -> bool:
+        nonlocal checks
+        checks += 1
+        return checks > 2
+
+    result = copy_playlist_files(
+        playlist,
+        usb,
+        output,
+        is_cancelled=is_cancelled,
+    )
+
+    assert result.cancelled
+    assert not result.success
+    assert result.copied_count == 1
+    assert len(result.files) == 1
+    assert (output / "Set" / "one.mp3").exists()
+    assert not (output / "Set" / "two.mp3").exists()

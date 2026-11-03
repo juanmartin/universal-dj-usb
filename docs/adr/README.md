@@ -16,6 +16,7 @@ was made, so later agents do not re-litigate it from a small context window.
 | [0007](0007-pyside6-mojave-support.md) | Proposed | 2026-10-29 | Decide the supported PySide6/macOS 10.14 matrix | — |
 | [0008](0008-playlist-file-copy-layout.md) | Accepted | 2026-10-29 | Copy playlist audio into per-playlist folders with flat, optionally numbered filenames; playlists stay in the output root | — |
 | [0009](0009-nml-volume-relative-paths.md) | Accepted | 2026-11-01 | NML paths are always volume-relative; relative/absolute applies to M3U/M3U8 only | ADR-0006 for NML |
+| [0010](0010-format-folder-layout.md) | Accepted | 2026-11-02 | Optional `PLAYLISTS/<FORMAT>` layout with shared audio and output-root-contained `..` paths | ADR-0006 for the opt-in layout |
 
 ## Status meanings
 

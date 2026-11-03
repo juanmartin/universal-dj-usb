@@ -3,7 +3,7 @@
 > **Scope:** local setup, commands, test strategy, linting, and debugging.
 > **Read when:** setting up the repo, adding tests, running checks, or investigating a
 > local failure.
-> **Last verified:** 2026-11-01 against `dev`.
+> **Last verified:** 2026-11-02 against `dev`.
 
 ## Setup
 
@@ -65,18 +65,19 @@ uv run mypy src/
 
 ## Testing reality
 
-The suite is **47 tests and roughly 28% coverage**. It covers synthetic parsing helpers,
+The suite is **56 tests and roughly 29% coverage**. It covers synthetic parsing helpers,
 generator path modes, the copier/exporter, and the CLI copy workflows. It does not
 exercise the Kaitai parser end-to-end or a real Rekordbox USB drive.
 
-- `tests/test_generators.py` covers extensions plus relative/absolute output paths.
+- `tests/test_generators.py` covers extensions, M3U/M3U8 relative/absolute paths, NML
+  volume-relative/Unicode/Windows-separator paths, and format-folder relative paths.
 - `tests/test_copier.py` covers naming, numbering, collisions, skip/overwrite, duplicates,
-  and missing files.
-- `tests/test_generators.py` covers extensions, M3U/M3U8 relative/absolute paths, and NML
-  volume-relative, Unicode, and Windows-separator paths.
+  missing files, and cancellation between files.
 - `tests/test_exporter.py` covers copy + M3U8/NML, numbering, missing-track exclusion,
-  copy-only, duplicate playlist names, and normal NML export.
-- `tests/test_cli.py` covers `copy-files`, `convert --copy-files`, and flag validation.
+  copy-only, duplicate playlist names, normal NML export, format folders, and cancellation.
+- `tests/test_paths.py` covers source resolution, sanitization, and parent-relative paths.
+- `tests/test_cli.py` covers `copy-files`, `convert --copy-files`, format folders, and flag
+  validation.
 - `tests/test_parser.py` checks `find_pdb_file()` and constructor state using mocks.
 - There is no committed PDB fixture; `*.pdb` is git-ignored.
 - No copyrighted audio should be committed; tests write tiny dummy bytes to `tmp_path`.
