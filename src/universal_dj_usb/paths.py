@@ -1,5 +1,6 @@
 """Path helpers shared by the parser, generators, and playlist copier."""
 
+import os
 import platform
 from pathlib import Path
 from typing import Optional
@@ -91,6 +92,31 @@ def relative_path_if_inside(path: Path, base_dir: Path) -> Optional[str]:
         return path.resolve().relative_to(base_dir.resolve()).as_posix()
     except (OSError, ValueError):
         return None
+
+
+def relative_path_between(path: Path, base_dir: Path, root_dir: Path) -> Optional[str]:
+    """Return a relative path between two paths inside the same root.
+
+    Unlike :func:`relative_path_if_inside`, this may include ``..`` components.
+    It only succeeds when both *path* and *base_dir* are inside *root_dir*, so
+    relative paths never escape the export tree.
+    """
+    try:
+        relative_path = path.resolve().relative_to(root_dir.resolve())
+        relative_base = base_dir.resolve().relative_to(root_dir.resolve())
+    except (OSError, ValueError):
+        return None
+
+    path_parts = relative_path.parts
+    base_parts = relative_base.parts
+    common = 0
+    for path_part, base_part in zip(path_parts, base_parts):
+        if os.path.normcase(path_part) != os.path.normcase(base_part):
+            break
+        common += 1
+
+    parts = [".."] * (len(base_parts) - common) + list(path_parts[common:])
+    return "/".join(parts) if parts else "."
 
 
 def volume_name_for(path: Path) -> str:

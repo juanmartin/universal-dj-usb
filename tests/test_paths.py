@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from universal_dj_usb.paths import (
+    relative_path_between,
     relative_path_if_inside,
     resolve_track_source,
     sanitize_filename,
@@ -67,3 +68,20 @@ def test_relative_path_if_inside(tmp_path):
 
     assert relative_path_if_inside(inside, base) == "Set A/song.mp3"
     assert relative_path_if_inside(outside, base) is None
+
+
+def test_relative_path_between_shared_audio_layout(tmp_path):
+    root = tmp_path / "export"
+    base = root / "PLAYLISTS" / "M3U"
+    track = root / "Set" / "song.mp3"
+
+    assert relative_path_between(track, base, root) == "../../Set/song.mp3"
+
+
+def test_relative_path_between_rejects_outside_root(tmp_path):
+    root = tmp_path / "export"
+    base = root / "PLAYLISTS" / "M3U"
+    outside = tmp_path / "usb" / "song.mp3"
+
+    assert relative_path_between(outside, base, root) is None
+    assert relative_path_between(root / "Set" / "song.mp3", outside, root) is None

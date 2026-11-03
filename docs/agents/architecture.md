@@ -3,7 +3,7 @@
 > **Scope:** component map, data flow, module contracts, and extension points.
 > **Read when:** changing multiple modules, adding an interface or output format, or
 > onboarding to the codebase.
-> **Last verified:** 2026-11-01 against `dev`.
+> **Last verified:** 2026-11-02 against `dev`.
 
 ## Component map
 
@@ -119,6 +119,8 @@ export_result = export_playlists(
 - `export_playlists()` creates the output root, optionally enhances, optionally copies,
   then generates each requested format. Missing/unavailable tracks are excluded from the
   generated playlist and appended as warnings.
+- `separate_format_folders` writes playlists under `PLAYLISTS/<FORMAT>/`; audio stays
+  shared ([ADR-0010](../adr/0010-format-folder-layout.md)).
 - Interface code must not reimplement this loop. Add options to `ConversionConfig` and
   pass them through the exporter.
 
@@ -139,10 +141,8 @@ class SomeGenerator(BaseGenerator):
   before calling `generate()`.
 - `BaseGenerator._sanitize_filename()` replaces `<>:"/\|?*` with `_` and trims dots and
   whitespace.
-- `BaseGenerator._normalize_path()` converts to a path relative to the playlist file's
-  parent only when `config.relative_paths` is true and the resolved track is inside that
-  directory; otherwise it returns the absolute path with forward slashes. This applies to
-  M3U/M3U8; NML is always volume-relative. See
+- `BaseGenerator._normalize_path()` emits relative paths only when the resolved track is
+  inside the playlist directory (M3U/M3U8); NML is volume-relative. See
   [generators.md](generators.md#path-semantics).
 - Generators return a failed `ConversionResult` instead of raising to the interface.
 

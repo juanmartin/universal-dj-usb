@@ -2,7 +2,7 @@
 
 > **Scope:** PyInstaller specs, platform builds, versioning, CI, and release artifacts.
 > **Read when:** changing packaging, CI, versioning, or platform support.
-> **Last verified:** 2026-11-01 against `dev`.
+> **Last verified:** 2026-11-02 against `dev`.
 
 ## Local builds
 

@@ -25,6 +25,7 @@ class ExportResult:
 
     conversions: List[ConversionResult] = field(default_factory=list)
     copies: List[PlaylistCopyResult] = field(default_factory=list)
+    cancelled: bool = False
 
     @property
     def successful_conversions(self) -> List[ConversionResult]:
@@ -58,7 +59,7 @@ class ExportResult:
     def success(self) -> bool:
         conversions_ok = all(result.success for result in self.conversions)
         copies_ok = all(result.success for result in self.copies)
-        return conversions_ok and copies_ok
+        return conversions_ok and copies_ok and not self.cancelled
 
 
 def create_generators(config: ConversionConfig) -> List[BaseGenerator]:
@@ -94,31 +95,52 @@ def export_playlists(
     enhance: bool = False,
     generate_playlists: bool = True,
     progress_callback: Optional[ProgressCallback] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
 ) -> ExportResult:
     """Copy playlist audio and/or generate playlist files.
 
     This is the single orchestration path used by the CLI and GUI. When
     ``config.copy_files`` is true, audio is copied into
     ``<output_dir>/<playlist name>/`` and generated playlists reference those
-    copies.
+    copies. With ``config.separate_format_folders``, playlist files go under
+    ``<output_dir>/PLAYLISTS/<FORMAT>/`` while audio stays shared at the root.
     """
     result = ExportResult()
     usb_path = usb_path.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    if is_cancelled and is_cancelled():
+        result.cancelled = True
+        _emit(progress_callback, "Export canceled.", 100)
+        return result
+
     working_playlists = playlists
     if enhance and parser is not None:
         _emit(progress_callback, "Enhancing track metadata...", 0)
-        working_playlists = [
-            parser.enhance_playlist_tracks(playlist, usb_path) for playlist in playlists
-        ]
+        enhanced_playlists = []
+        for playlist in playlists:
+            if is_cancelled and is_cancelled():
+                result.cancelled = True
+                _emit(progress_callback, "Export canceled.", 100)
+                return result
+            enhanced_playlists.append(
+                parser.enhance_playlist_tracks(playlist, usb_path)
+            )
+        working_playlists = enhanced_playlists
 
     generators = create_generators(config) if generate_playlists else []
     total_playlists = max(len(working_playlists), 1)
     used_folder_names: set[str] = set()
+    if config.separate_format_folders:
+        # Reserve the shared parent folder used by the format subdirectories.
+        used_folder_names.add("playlists")
 
     for playlist_index, playlist in enumerate(working_playlists):
+        if is_cancelled and is_cancelled():
+            result.cancelled = True
+            break
+
         playlist_percent = int((playlist_index / total_playlists) * 100)
         folder_name = unique_name(sanitize_filename(playlist.name), used_folder_names)
         used_folder_names.add(folder_name.casefold())
@@ -158,8 +180,13 @@ def export_playlists(
                 number_files=config.number_files,
                 overwrite=config.overwrite_files,
                 progress_callback=on_file,
+                is_cancelled=is_cancelled,
             )
             result.copies.append(copy_result)
+
+            if copy_result.cancelled:
+                result.cancelled = True
+                break
 
             tracks_for_output = [
                 replace(track, file_path=copy_result.destinations_by_index[index])
@@ -192,7 +219,18 @@ def export_playlists(
             continue
 
         for generator in generators:
-            output_path = output_dir / build_output_filename(
+            if is_cancelled and is_cancelled():
+                result.cancelled = True
+                break
+
+            playlist_output_dir = output_dir
+            if config.separate_format_folders:
+                playlist_output_dir = (
+                    output_dir
+                    / "PLAYLISTS"
+                    / generator.file_extension.lstrip(".").upper()
+                )
+            output_path = playlist_output_dir / build_output_filename(
                 folder_name, generator, config
             )
             conversion = generator.generate(
@@ -202,13 +240,19 @@ def export_playlists(
                 _add_copy_warnings(conversion, copy_result)
             result.conversions.append(conversion)
 
+        if result.cancelled:
+            break
+
         _emit(
             progress_callback,
             f"Exported '{playlist.name}'",
             int(((playlist_index + 1) / total_playlists) * 100),
         )
 
-    _emit(progress_callback, "Export complete!", 100)
+    if result.cancelled:
+        _emit(progress_callback, "Export canceled.", 100)
+    else:
+        _emit(progress_callback, "Export complete!", 100)
     return result
 
 

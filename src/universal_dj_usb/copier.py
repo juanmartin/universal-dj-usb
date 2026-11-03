@@ -43,6 +43,7 @@ class PlaylistCopyResult:
     files: List[FileCopyResult] = field(default_factory=list)
     destinations_by_index: Dict[int, Path] = field(default_factory=dict)
     error: Optional[str] = None
+    cancelled: bool = False
 
     @property
     def copied_count(self) -> int:
@@ -71,7 +72,7 @@ class PlaylistCopyResult:
 
     @property
     def success(self) -> bool:
-        return self.error is None
+        return self.error is None and not self.cancelled
 
 
 def copy_playlist_files(
@@ -82,12 +83,14 @@ def copy_playlist_files(
     number_files: bool = False,
     overwrite: bool = False,
     progress_callback: Optional[Callable[[FileCopyResult, int, int], None]] = None,
+    is_cancelled: Optional[Callable[[], bool]] = None,
 ) -> PlaylistCopyResult:
     """Copy every audio file in *playlist* into ``output_dir/<folder_name>``.
 
     Files keep their original basename. Existing files are skipped unless
     *overwrite* is true. Missing sources and copy errors are recorded in the
-    result instead of aborting the operation.
+    result instead of aborting the operation. Cancellation is checked between
+    files, so an in-progress file copy is allowed to finish.
     """
     usb_path = usb_path.expanduser().resolve()
     output_dir = output_dir.expanduser().resolve()
@@ -96,6 +99,10 @@ def copy_playlist_files(
         playlist_name=playlist.name,
         destination_folder=folder,
     )
+
+    if is_cancelled and is_cancelled():
+        result.cancelled = True
+        return result
 
     try:
         folder.mkdir(parents=True, exist_ok=True)
@@ -110,6 +117,10 @@ def copy_playlist_files(
     source_to_destination: Dict[Path, Path] = {}
 
     for index, track in enumerate(playlist.tracks):
+        if is_cancelled and is_cancelled():
+            result.cancelled = True
+            break
+
         source = resolve_track_source(track.file_path, usb_path)
         file_result: FileCopyResult
 

@@ -179,6 +179,92 @@ def test_convert_and_copy_writes_all_requested_formats(tmp_path):
     assert len(result.conversions) == 3
 
 
+def test_separate_format_folders_share_audio(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="Set", tracks=[_track(usb, "Contents/Artist/Album/song.mp3")]
+    )
+    output = tmp_path / "export"
+    config = ConversionConfig(
+        output_format="all",
+        copy_files=True,
+        separate_format_folders=True,
+    )
+
+    result = export_playlists([playlist], usb, output, config)
+
+    assert (output / "PLAYLISTS" / "NML" / "Set.nml").exists()
+    assert (output / "PLAYLISTS" / "M3U" / "Set.m3u").exists()
+    assert (output / "PLAYLISTS" / "M3U8" / "Set.m3u8").exists()
+    assert (output / "Set" / "song.mp3").exists()
+    assert not (output / "PLAYLISTS" / "Set").exists()
+    assert result.total_copied == 1
+
+    m3u8_text = (output / "PLAYLISTS" / "M3U8" / "Set.m3u8").read_text(encoding="utf-8")
+    m3u_text = (output / "PLAYLISTS" / "M3U" / "Set.m3u").read_text(encoding="ascii")
+    assert "../../Set/song.mp3" in m3u8_text
+    assert "../../Set/song.mp3" in m3u_text
+
+
+def test_separate_format_folders_without_copy(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="Set", tracks=[_track(usb, "Contents/Artist/Album/song.mp3")]
+    )
+    output = tmp_path / "export"
+    config = ConversionConfig(
+        output_format="all",
+        separate_format_folders=True,
+    )
+
+    result = export_playlists([playlist], usb, output, config)
+
+    assert result.success
+    assert (output / "PLAYLISTS" / "NML" / "Set.nml").exists()
+    assert (output / "PLAYLISTS" / "M3U" / "Set.m3u").exists()
+    assert (output / "PLAYLISTS" / "M3U8" / "Set.m3u8").exists()
+    assert not (output / "Set").exists()
+
+
+def test_playlist_named_playlists_does_not_collide_with_format_parent(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="PLAYLISTS", tracks=[_track(usb, "Contents/Artist/Album/song.mp3")]
+    )
+    output = tmp_path / "export"
+    config = ConversionConfig(
+        output_format="m3u8",
+        copy_files=True,
+        separate_format_folders=True,
+    )
+
+    result = export_playlists([playlist], usb, output, config)
+
+    assert result.success
+    assert (output / "PLAYLISTS (2)" / "song.mp3").exists()
+    assert (output / "PLAYLISTS" / "M3U8" / "PLAYLISTS (2).m3u8").exists()
+
+
+def test_export_can_be_cancelled_before_it_starts(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(name="Set", tracks=[_track(usb, "Contents/song.mp3")])
+    output = tmp_path / "export"
+    config = ConversionConfig(output_format="m3u8", copy_files=True)
+
+    result = export_playlists(
+        [playlist],
+        usb,
+        output,
+        config,
+        is_cancelled=lambda: True,
+    )
+
+    assert result.cancelled
+    assert not result.success
+    assert not (output / "Set.m3u8").exists()
+    assert not (output / "Set").exists()
+
+
 def test_duplicate_playlist_names_get_separate_folders(tmp_path):
     usb = _make_usb(tmp_path)
     first = Playlist(name="Set", tracks=[_track(usb, "Contents/one.mp3")])

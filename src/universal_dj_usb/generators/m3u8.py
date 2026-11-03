@@ -66,6 +66,9 @@ class M3U8Generator(BaseGenerator):
                     track_path = self._normalize_path(
                         resolve_track_source(track.file_path, usb_path),
                         output_path.parent,
+                        root_dir=(
+                            usb_path if self.config.separate_format_folders else None
+                        ),
                     )
 
                 # Note: No URL encoding needed for local file paths in M3U8

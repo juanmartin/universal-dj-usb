@@ -119,7 +119,7 @@ def test_m3u_absolute_paths_work_with_copied_destination_paths(tmp_path):
     assert copied.as_posix() in output_file.read_text(encoding="ascii")
 
 
-def test_m3u_absolute_paths_use_forward_slashes(tmp_path):
+def test_m3u8_absolute_paths_use_forward_slashes(tmp_path):
     """Absolute entries still use playlist-safe forward slashes."""
     windows_style = Path(r"C:\Music\song.mp3")
     track = Track(title="Track", artist="Artist", file_path=windows_style)
@@ -133,6 +133,23 @@ def test_m3u_absolute_paths_use_forward_slashes(tmp_path):
     text = output_file.read_text(encoding="ascii")
     assert "C:/Music/song.mp3" in text
     assert "\\" not in text
+
+
+def test_m3u8_separate_format_folders_uses_shared_audio_relative_path(tmp_path):
+    """Format folders may reference shared audio with parent-relative paths."""
+    root = tmp_path / "export"
+    track_file = root / "Set" / "song.mp3"
+    track_file.parent.mkdir(parents=True)
+    track_file.write_bytes(b"audio")
+    track = Track(title="Track", artist="Artist", file_path=track_file)
+    playlist = Playlist(name="Set", tracks=[track])
+    output_file = root / "PLAYLISTS" / "M3U8" / "Set.m3u8"
+    config = ConversionConfig(separate_format_folders=True)
+
+    result = M3U8Generator(config).generate(playlist, output_file, root)
+
+    assert result.success
+    assert "../../Set/song.mp3" in output_file.read_text(encoding="utf-8")
 
 
 def test_nml_relative_location_and_key_for_copied_track(tmp_path):

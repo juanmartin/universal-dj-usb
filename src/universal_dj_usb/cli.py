@@ -213,6 +213,12 @@ def _print_copy_summary(export_result: ExportResult) -> None:
     help="Append format suffix to filenames (e.g., -NML.nml for Traktor compatibility)",
 )
 @click.option(
+    "--separate-format-folders",
+    is_flag=True,
+    default=False,
+    help="Put playlist files in PLAYLISTS/<FORMAT>/ folders",
+)
+@click.option(
     "--m3u-extended/--m3u-simple",
     default=True,
     help=(
@@ -252,6 +258,7 @@ def convert(
     format: str,
     relative_paths: bool,
     use_format_suffix: bool,
+    separate_format_folders: bool,
     m3u_extended: bool,
     m3u_absolute_paths: bool,
     copy_files: bool,
@@ -294,6 +301,7 @@ def convert(
         relative_paths=relative_paths,
         output_format=format.lower(),
         use_format_suffix=use_format_suffix,
+        separate_format_folders=separate_format_folders,
         m3u_extended=m3u_extended,
         m3u_absolute_paths=m3u_absolute_paths,
         copy_files=copy_files,
@@ -372,6 +380,9 @@ def convert(
         console.print(f"[dim]• Format: {format}[/dim]")
         console.print(f"[dim]• Relative paths: {relative_paths}[/dim]")
         console.print(f"[dim]• Use format suffix: {use_format_suffix}[/dim]")
+        console.print(
+            f"[dim]• Separate format folders: {separate_format_folders}[/dim]"
+        )
         console.print(f"[dim]• Copy files: {copy_files}[/dim]")
         console.print(f"[dim]• Number files: {number_files}[/dim]")
         console.print(f"[dim]• Overwrite files: {overwrite}[/dim]")

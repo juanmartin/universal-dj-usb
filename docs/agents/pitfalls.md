@@ -3,7 +3,7 @@
 > **Scope:** dead code, stale docs, fragile behavior, and traps that are easy to repeat.
 > **Read when:** something behaves unexpectedly, docs disagree, or you are about to
 > “clean up” code that looks unused.
-> **Last verified:** 2026-11-01 against `dev`.
+> **Last verified:** 2026-11-02 against `dev`.
 
 ## Dead or misleading code
 
@@ -45,6 +45,9 @@ the user's uncommitted work first.
 - `ConversionWorker` calls the shared `export_playlists()` path. The GUI always generates
   playlist files and enhances selected playlists; copy-only runs through `udj copy-files`,
   not the GUI.
+- While exporting, the GUI locks the left panel and options tab, switches to the log view,
+  and shows the progress bar/cancel button at the bottom. Cancellation is checked between
+  copied files and playlists; the current file copy is allowed to finish.
 
 ## Paths
 
@@ -92,7 +95,7 @@ the user's uncommitted work first.
 
 ## Testing
 
-- 47 tests, roughly 28% coverage; parser and most real-USB behavior are still untested.
+- 56 tests, roughly 29% coverage; parser and most real-USB behavior are still untested.
 - No PDB fixture; `*.pdb` is git-ignored.
 - Generator tests cover extensions plus relative/absolute path cases; copier/exporter/CLI
   tiny-file tests cover the copy workflow.

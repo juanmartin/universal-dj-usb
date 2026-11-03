@@ -4,7 +4,7 @@
 > `ConversionConfig` fields.
 > **Read when:** adding or fixing an output format, changing filenames or paths, or
 > wiring a new option into the CLI/GUI.
-> **Last verified:** 2026-11-01 against `dev`.
+> **Last verified:** 2026-11-02 against `dev`.
 
 ## Base contract
 
@@ -105,17 +105,23 @@ CLI/GUI logger.
 - `m3u_extended=False` writes paths only (no `#EXTINF` lines).
 - `m3u_extended` controls only the M3U/M3U8 directives. Metadata enhancement runs
   independently; NML always carries track metadata.
-- Missing durations become `-1` in `#EXTINF`.
-- No URL encoding is applied; these are local file paths.
 - M3U writes ASCII. Non-ASCII artist/title text can raise `UnicodeEncodeError`, which the
   generator returns as a failed `ConversionResult`; use M3U8 for non-ASCII metadata.
-- Both formats resolve absolute entries through `resolve_track_source()`; their only
-  material difference is encoding and M3U8's extra metadata labels.
+
+### Optional format folders
+
+`separate_format_folders` (GUI: **Put playlist files in PLAYLISTS/<format> folders**, CLI:
+`--separate-format-folders`) puts playlists under `OUT/PLAYLISTS/<FORMAT>/` while copied
+audio stays shared at `OUT/<Playlist>/`. M3U/M3U8 may use
+`../../<Playlist>/track.mp3`; NML is unaffected. See
+[ADR-0010](../adr/0010-format-folder-layout.md).
 
 ## Path semantics
 
 [ADR-0006](../adr/0006-path-semantics.md) is the source of truth for M3U/M3U8.
-[ADR-0009](../adr/0009-nml-volume-relative-paths.md) governs NML.
+[ADR-0009](../adr/0009-nml-volume-relative-paths.md) governs NML, and
+[ADR-0010](../adr/0010-format-folder-layout.md) governs the opt-in `PLAYLISTS/<FORMAT>`
+layout.
 
 ```python
 def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
@@ -131,7 +137,10 @@ def _normalize_path(self, path: Path, base_dir: Optional[Path] = None) -> str:
   current machine.
 - M3U/M3U8 callers pass `output_path.parent` as `base_dir`. A track becomes relative only
   when it is inside that directory; otherwise the generator writes an absolute path. No
-  `../..` escaping paths are emitted.
+  `../..` escaping paths are emitted by default.
+- With `separate_format_folders`, M3U/M3U8 also use `relative_path_between()`: a `..` path
+  is allowed only when both the track and playlist directory are inside the same export
+  root. Paths never escape that root.
 - `m3u_absolute_paths` is an explicit absolute-path override for M3U/M3U8.
 - NML ignores `relative_paths`. `LOCATION/DIR` and `PRIMARYKEY` are always derived from
   the same `(volume, relative_path)` pair.
@@ -148,7 +157,7 @@ Constructed in `cli.py`, `gui.py`, and `models.py` (defaults/`from_dict`).
 
 | Field | Read by | Status |
 |---|---|---|
-| `relative_paths` | `BaseGenerator` (M3U/M3U8) | Live; relative only for tracks inside the output directory. NML ignores it |
+| `relative_paths` | `BaseGenerator` (M3U/M3U8) | Live; relative inside the output directory, or parent-relative inside the export root with `separate_format_folders`. NML ignores it |
 | `preserve_folder_structure` | — | **Unused** |
 | `include_cue_points` | NML | Live, but no cue data is populated |
 | `include_loops` | — | **Unused**; GUI sets `False` |
@@ -156,6 +165,7 @@ Constructed in `cli.py`, `gui.py`, and `models.py` (defaults/`from_dict`).
 | `encoding` | — | **Unused**; writers choose encoding themselves |
 | `output_format` | CLI/GUI, `exporter.create_generators()` | Live; selects generators |
 | `use_format_suffix` | CLI/GUI, `exporter.build_output_filename()` | Live; filename construction |
+| `separate_format_folders` | CLI/GUI, `exporter` | Live; puts playlists under `PLAYLISTS/<FORMAT>/` |
 | `m3u_extended` | M3U/M3U8 | Live |
 | `m3u_absolute_paths` | M3U/M3U8 | Live |
 | `copy_files` | CLI/GUI, `exporter` | Live; enables per-playlist audio copying |
@@ -183,6 +193,8 @@ generator actually reads it. `from_dict()` silently ignores unknown keys.
       path, and `FILE` uses the resolved filename.
 - [ ] M3U is ASCII; M3U8 is UTF-8.
 - [ ] Relative and absolute modes were both exercised.
+- [ ] Format-folder mode keeps audio shared at the root and uses `..` only inside the
+      export tree.
 - [ ] Copy mode points at the copied files under the playlist folder.
 - [ ] Missing duration/BPM/key does not crash the generator.
 - [ ] A failed generation returns `ConversionResult(success=False)`.

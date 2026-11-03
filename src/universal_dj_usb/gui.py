@@ -123,6 +123,11 @@ class ConversionWorker(QThread):
         self.parser = parser
         self.generate_playlists = generate_playlists
         self.enhance = enhance
+        self._cancel_event = threading.Event()
+
+    def cancel(self) -> None:
+        """Request cancellation between copied files and playlists."""
+        self._cancel_event.set()
 
     def run(self) -> None:
         """Run the shared exporter and emit its result."""
@@ -136,6 +141,7 @@ class ConversionWorker(QThread):
                 enhance=self.enhance,
                 generate_playlists=self.generate_playlists,
                 progress_callback=self.conversion_progress.emit,
+                is_cancelled=self._cancel_event.is_set,
             )
             self.conversion_complete.emit(result)
         except Exception as exc:
@@ -195,8 +201,8 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
 
         # Left panel - USB and Playlists
-        left_panel = self._create_left_panel()
-        splitter.addWidget(left_panel)
+        self.left_panel = self._create_left_panel()
+        splitter.addWidget(self.left_panel)
 
         # Right panel - Options and Output
         right_panel = self._create_right_panel()
@@ -289,16 +295,16 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
 
         # Create tabs for different sections
-        tab_widget = QTabWidget()
-        layout.addWidget(tab_widget)
+        self.tab_widget = QTabWidget()
+        layout.addWidget(self.tab_widget)
 
         # Conversion Options Tab
-        options_tab = self._create_options_tab()
-        tab_widget.addTab(options_tab, "Conversion Options")
+        self.options_tab = self._create_options_tab()
+        self.tab_widget.addTab(self.options_tab, "Conversion Options")
 
         # Output Tab
-        output_tab = self._create_output_tab()
-        tab_widget.addTab(output_tab, "Output & Logs")
+        self.output_tab = self._create_output_tab()
+        self.tab_widget.addTab(self.output_tab, "Output & Logs")
 
         return panel
 
@@ -355,11 +361,21 @@ class MainWindow(QMainWindow):
         format_layout.addWidget(self.format_combo, 0, 1)
 
         # Format-specific options
-        self.use_suffix_checkbox = QCheckBox("Add format suffix to filenames")
+        self.use_suffix_checkbox = QCheckBox("Add format suffix to playlist filenames")
         self.use_suffix_checkbox.setToolTip(
-            "Adds format suffix to filename for clarity (e.g. 'My Playlist_nml.nml')"
+            "Adds format suffix to playlist filenames for clarity "
+            "(e.g. 'My Playlist_nml.nml')"
         )
         format_layout.addWidget(self.use_suffix_checkbox, 1, 0, 1, 2)
+
+        self.separate_format_folders_checkbox = QCheckBox(
+            "Put playlist files in PLAYLISTS/<format> folders"
+        )
+        self.separate_format_folders_checkbox.setToolTip(
+            "Writes playlist files under PLAYLISTS/NML, PLAYLISTS/M3U, and "
+            "PLAYLISTS/M3U8. Copied audio stays shared at the output root."
+        )
+        format_layout.addWidget(self.separate_format_folders_checkbox, 2, 0, 1, 2)
 
         layout.addWidget(format_group)
 
@@ -469,11 +485,6 @@ class MainWindow(QMainWindow):
         self.convert_button.clicked.connect(self._start_conversion)
         layout.addWidget(self.convert_button)
 
-        # Progress Bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
-
         layout.addStretch()
 
         # Initial format change to set visibility
@@ -511,6 +522,20 @@ class MainWindow(QMainWindow):
         """
         )
         layout.addWidget(self.log_output)
+
+        # Progress and cancellation controls stay at the bottom of the log view.
+        progress_layout = QHBoxLayout()
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        progress_layout.addWidget(self.progress_bar, 1)
+
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.setToolTip("Stop the export after the current file.")
+        self.cancel_button.clicked.connect(self._cancel_conversion)
+        progress_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(progress_layout)
 
         return tab
 
@@ -963,6 +988,40 @@ class MainWindow(QMainWindow):
         else:
             self.convert_button.setText("Convert Selected Playlists")
 
+    def _set_export_running(self, running: bool) -> None:
+        """Lock the interface while an export is running, or restore it."""
+        self.export_running = running
+
+        if running:
+            self.tab_widget.setCurrentWidget(self.output_tab)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setVisible(True)
+
+        self.left_panel.setEnabled(not running)
+        self.options_tab.setEnabled(not running)
+        self.tab_widget.setTabEnabled(
+            self.tab_widget.indexOf(self.options_tab), not running
+        )
+        self.verbose_checkbox.setEnabled(not running)
+        self.clear_logs_button.setEnabled(not running)
+        self.cancel_button.setEnabled(running)
+
+        if not running:
+            self.progress_bar.setVisible(False)
+            self.progress_bar.setValue(0)
+            self.tab_widget.setCurrentWidget(self.options_tab)
+            self._update_conversion_button_state()
+
+    def _cancel_conversion(self) -> None:
+        """Request cancellation and keep the UI locked until the worker stops."""
+        if not self.export_running or self.conversion_worker is None:
+            return
+
+        self.cancel_button.setEnabled(False)
+        self._log_message("Cancelling export...")
+        self.statusBar().showMessage("Cancelling export...")
+        self.conversion_worker.cancel()
+
     def _start_conversion(self) -> None:
         """Start the conversion process, optionally copying audio files."""
         self._start_export()
@@ -982,10 +1041,7 @@ class MainWindow(QMainWindow):
         config = self._create_conversion_config()
         playlists = list(self.selected_playlists.values())
 
-        # Disable UI during the export
-        self.convert_button.setEnabled(False)
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setValue(0)
+        self._set_export_running(True)
 
         self.conversion_worker = ConversionWorker(
             playlists=playlists,
@@ -1014,6 +1070,7 @@ class MainWindow(QMainWindow):
             include_loops=False,  # Not implemented yet
             output_format=format_map[self.format_combo.currentText()],
             use_format_suffix=self.use_suffix_checkbox.isChecked(),
+            separate_format_folders=self.separate_format_folders_checkbox.isChecked(),
             m3u_extended=self.m3u_extended_checkbox.isChecked(),
             m3u_absolute_paths=self.absolute_paths_radio.isChecked(),
             copy_files=self.copy_files_checkbox.isChecked(),
@@ -1029,11 +1086,6 @@ class MainWindow(QMainWindow):
 
     def _on_conversion_complete(self, result: ExportResult) -> None:
         """Handle export completion."""
-        # Re-enable UI
-        self.export_running = False
-        self.progress_bar.setVisible(False)
-        self._update_conversion_button_state()
-
         successful = result.successful_conversions
         failed = result.failed_conversions
         has_copies = bool(result.copies)
@@ -1075,6 +1127,17 @@ class MainWindow(QMainWindow):
             f"{result.total_errors} error(s)."
         )
 
+        if result.cancelled:
+            self._log_message("Export canceled.")
+            QMessageBox.information(
+                self,
+                "Export Canceled",
+                "Export canceled before completion.",
+            )
+            self._set_export_running(False)
+            self.statusBar().showMessage("Export canceled")
+            return
+
         if failed or not result.success or result.total_errors or result.total_missing:
             details = ["Export completed with issues."]
             if failed:
@@ -1099,6 +1162,7 @@ class MainWindow(QMainWindow):
             )
         else:
             status = f"Copy complete - {result.total_copied} files copied"
+        self._set_export_running(False)
         self.statusBar().showMessage(status)
 
     def _show_export_complete_dialog(self, message: str, warning: bool) -> None:
@@ -1125,11 +1189,9 @@ class MainWindow(QMainWindow):
 
     def _on_conversion_error(self, message: str) -> None:
         """Handle an unexpected exporter failure."""
-        self.export_running = False
-        self.progress_bar.setVisible(False)
-        self._update_conversion_button_state()
         self._log_message(f"❌ {message}")
         QMessageBox.critical(self, "Export Error", message)
+        self._set_export_running(False)
         self.statusBar().showMessage("Export failed")
 
     def _log_message(self, message: str) -> None:
@@ -1154,8 +1216,10 @@ class MainWindow(QMainWindow):
         # Stop conversion worker only
         if self.conversion_worker and self.conversion_worker.isRunning():
             print("Stopping conversion worker...")
-            self.conversion_worker.terminate()
-            self.conversion_worker.wait(3000)
+            self.conversion_worker.cancel()
+            if not self.conversion_worker.wait(5000):
+                self.conversion_worker.terminate()
+                self.conversion_worker.wait(1000)
             self.conversion_worker = None
 
         print("All workers stopped, accepting close event")

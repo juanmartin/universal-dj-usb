@@ -116,3 +116,27 @@ def test_copy_flags_without_copy_files_are_rejected(monkeypatch, tmp_path):
 
     assert result.exit_code == 2
     assert "--number-files requires --copy-files" in result.output
+
+
+def test_convert_with_separate_format_folders(monkeypatch, tmp_path):
+    usb, _playlist, tree = _make_playlist(tmp_path)
+    _patch_parser(monkeypatch, tree)
+    output = tmp_path / "export"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "convert",
+            str(usb),
+            "-p",
+            "Set",
+            "-o",
+            str(output),
+            "-f",
+            "m3u8",
+            "--separate-format-folders",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (output / "PLAYLISTS" / "M3U8" / "Set.m3u8").exists()
