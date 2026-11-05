@@ -96,7 +96,7 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
   [ADR-0009](docs/adr/0009-nml-volume-relative-paths.md) defines NML as always
   volume-relative. Generators resolve PDB paths to real files first.
 - Cue points are modelled and NML can emit them, but no ANLZ extraction exists yet.
-- The test suite has 56 tests and roughly 29% coverage; passing tests do not prove parser
+- The test suite has 58 tests and roughly 29% coverage; passing tests do not prove parser
   behavior against a real PDB.
 
 ## 6. Decision protocol

@@ -95,7 +95,7 @@ the user's uncommitted work first.
 
 ## Testing
 
-- 56 tests, roughly 29% coverage; parser and most real-USB behavior are still untested.
+- 58 tests, roughly 29% coverage; parser and most real-USB behavior are still untested.
 - No PDB fixture; `*.pdb` is git-ignored.
 - Generator tests cover extensions plus relative/absolute path cases; copier/exporter/CLI
   tiny-file tests cover the copy workflow.

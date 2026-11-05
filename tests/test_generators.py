@@ -87,7 +87,9 @@ def test_m3u_keeps_absolute_path_when_track_is_outside_output_dir(tmp_path):
     )
 
     assert result.success
-    assert track_path.as_posix() in output_file.read_text(encoding="ascii")
+    assert output_file.read_text(encoding="ascii").splitlines()[-1] == (
+        track_path.as_posix()
+    )
 
 
 def test_m3u_output_inside_usb_root_uses_absolute_path_for_usb_track(tmp_path):
@@ -101,7 +103,9 @@ def test_m3u_output_inside_usb_root_uses_absolute_path_for_usb_track(tmp_path):
     result = M3UGenerator(ConversionConfig()).generate(playlist, output_file, usb)
 
     assert result.success
-    assert track_path.as_posix() in output_file.read_text(encoding="ascii")
+    assert output_file.read_text(encoding="ascii").splitlines()[-1] == (
+        track_path.as_posix()
+    )
 
 
 def test_m3u_absolute_paths_work_with_copied_destination_paths(tmp_path):

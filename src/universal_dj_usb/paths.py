@@ -59,10 +59,11 @@ def resolve_track_source(file_path: Path, usb_path: Optional[Path] = None) -> Pa
     has_contents_marker = marker_index != -1 and (
         marker_index == 0 or lower[marker_index - 1] == "/"
     )
+    contents_candidate = None
     if has_contents_marker:
-        candidate = usb_path / normalized[marker_index:]
-        if candidate.exists():
-            return candidate
+        contents_candidate = usb_path / normalized[marker_index:]
+        if contents_candidate.exists():
+            return contents_candidate
 
     stripped = normalized.lstrip("/")
     if len(stripped) >= 2 and stripped[1] == ":":
@@ -76,6 +77,11 @@ def resolve_track_source(file_path: Path, usb_path: Optional[Path] = None) -> Pa
     for candidate in candidates:
         if candidate.exists():
             return candidate
+
+    # An absolute path with a Contents marker is a stale PDB/export path.
+    # Return the USB-anchored path for a useful error, not a duplicated prefix.
+    if contents_candidate is not None:
+        return contents_candidate
 
     # An absolute path without a Contents marker is likely a real path from
     # this machine that is merely missing. Preserve it for useful errors.

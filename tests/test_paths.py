@@ -52,6 +52,24 @@ def test_resolve_track_source_prefers_existing_absolute_path(tmp_path):
     assert resolve_track_source(absolute, usb) == absolute
 
 
+def test_resolve_track_source_reanchors_missing_absolute_contents_path(tmp_path):
+    usb = tmp_path / "usb"
+    usb.mkdir()
+    stale = Path("/old/machine/Contents/Artist/Album/song.mp3")
+
+    assert resolve_track_source(stale, usb) == (
+        usb / "Contents" / "Artist" / "Album" / "song.mp3"
+    )
+
+
+def test_resolve_track_source_preserves_missing_absolute_without_contents(tmp_path):
+    usb = tmp_path / "usb"
+    usb.mkdir()
+    stale = tmp_path / "old" / "song.mp3"
+
+    assert resolve_track_source(stale, usb) == stale
+
+
 def test_resolve_track_source_falls_back_to_usb_join(tmp_path):
     usb = tmp_path / "usb"
     source = usb / "Music" / "song.mp3"
