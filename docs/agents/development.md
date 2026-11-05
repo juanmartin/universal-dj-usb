@@ -3,7 +3,7 @@
 > **Scope:** local setup, commands, test strategy, linting, and debugging.
 > **Read when:** setting up the repo, adding tests, running checks, or investigating a
 > local failure.
-> **Last verified:** 2026-11-02 against `dev`.
+> **Last verified:** 2026-11-05 against `dev`.
 
 ## Setup
 

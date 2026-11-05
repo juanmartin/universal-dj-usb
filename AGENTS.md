@@ -1,7 +1,7 @@
 # AGENTS.md — Universal DJ USB
 
 > Canonical entry point for AI coding agents. Read this file first.
-> Last verified: 2026-11-02 against `dev`.
+> Last verified: 2026-11-05 against `dev`.
 
 ## 0. Context budget
 
@@ -90,6 +90,10 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 - `dev` is the integration branch; feature work lands there via PR. `main` stays
   release-only, and `feature/copy-playlist-files` is merged into `dev`.
 - Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
+- The v0.3.0 release is ready for final review; see
+  [docs/plans/v0.3-release.md](docs/plans/v0.3-release.md).
+- Next parser endeavor: OneLibrary/`exportLibrary.db` support; see
+  [docs/plans/onelibrary-support.md](docs/plans/onelibrary-support.md).
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
 - [ADR-0006](docs/adr/0006-path-semantics.md) defines M3U/M3U8 path semantics;

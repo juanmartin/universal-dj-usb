@@ -3,7 +3,7 @@
 > **Scope:** component map, data flow, module contracts, and extension points.
 > **Read when:** changing multiple modules, adding an interface or output format, or
 > onboarding to the codebase.
-> **Last verified:** 2026-11-02 against `dev`.
+> **Last verified:** 2026-11-05 against `dev`.
 
 ## Component map
 
