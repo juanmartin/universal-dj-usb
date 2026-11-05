@@ -89,9 +89,10 @@ The pushed `v*` tag triggers `.github/workflows/build.yml`.
 
 - **Trigger:** `v*` tags, PRs to `main`, manual `workflow_dispatch`.
 - **Test job:** Ubuntu, Python 3.11, `uv sync --all-extras`, `uv run pytest`.
-- **Build matrix:** `macos-13` (x64), `macos-14` (arm64), `windows-latest` (x64).
-- **Build steps:** `build.sh --both --skip-tests` on Unix; `build.ps1 -Both -SkipTests` on
-  Windows.
+- **Build matrix:** `macos-15-intel` (x64), `macos-15` (arm64), `windows-latest` (x64).
+  GitHub retired the macOS 13/14 runner images; do not switch back to those labels.
+- **Build steps:** `build.sh --both --skip-tests` on Unix; Windows runs `uv run pytest`
+  first, then `build.ps1 -Both -SkipTests`.
 
 Artifacts uploaded by the workflow:
 
