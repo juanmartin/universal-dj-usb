@@ -2,7 +2,11 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QLabel
+import pytest
+
+qt_widgets = pytest.importorskip("PySide6.QtWidgets")
+QApplication = qt_widgets.QApplication
+QLabel = qt_widgets.QLabel
 
 from universal_dj_usb import __version__
 from universal_dj_usb.gui import AboutDialog
