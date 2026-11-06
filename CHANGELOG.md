@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- **gui:** add a compact About dialog linked from the version label
 - add playlist file copy core and path handling ([9680e29](https://github.com/juanmartin/universal-dj-usb/commit/9680e296b762229eee61c67856058bac064c5e03))
 - add playlist audio copy workflows to CLI and GUI ([ddb14da](https://github.com/juanmartin/universal-dj-usb/commit/ddb14daa7437b88fdbe09a5e27f09608510b5811))
 - **gui:** open output folder after export ([367cdf9](https://github.com/juanmartin/universal-dj-usb/commit/367cdf985ebd1ab9e8de8218c6082a05f6d43df7))
