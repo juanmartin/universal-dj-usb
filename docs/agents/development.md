@@ -65,7 +65,7 @@ uv run mypy src/
 
 ## Testing reality
 
-The suite is **58 tests and roughly 29% coverage**. It covers synthetic parsing helpers,
+The suite is **59 tests and roughly 32% coverage**. It covers synthetic parsing helpers,
 generator path modes, the copier/exporter, and the CLI copy workflows. It does not
 exercise the Kaitai parser end-to-end or a real Rekordbox USB drive.
 

@@ -18,6 +18,7 @@ from PySide6.QtGui import (
     QDesktopServices,
     QFont,
     QIcon,
+    QMouseEvent,
     QPalette,
     QPixmap,
 )
@@ -25,6 +26,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -70,6 +73,77 @@ class USBDriveInfo:
         size_gb = self.size / (1024**3)
         rekordbox_status = "✓" if self.has_rekordbox else "✗"
         return f"{self.label} ({size_gb:.1f}GB) - Rekordbox: {rekordbox_status}"
+
+
+class ClickableLabel(QLabel):
+    """Label that emits a clicked signal on left-click."""
+
+    clicked = Signal()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
+class AboutDialog(QDialog):
+    """Compact About dialog with version and repository links."""
+
+    REPOSITORY_URL = "https://github.com/juanmartin/universal-dj-usb"
+    ISSUES_URL = "https://github.com/juanmartin/universal-dj-usb/issues"
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("About Universal DJ USB")
+        self.setModal(True)
+        self.setMinimumWidth(360)
+        self.setMaximumWidth(420)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 18, 22, 14)
+        layout.setSpacing(8)
+
+        title = QLabel("Universal DJ USB")
+        title_font = QFont()
+        title_font.setPointSize(15)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+
+        version = QLabel(f"Version {__version__}" if __version__ else "")
+        version.setStyleSheet("color: #666;")
+        layout.addWidget(version)
+
+        description = QLabel(
+            "Convert Rekordbox USB playlists to Traktor NML, M3U, and M3U8."
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        signature = QLabel(
+            "Hecho con amor, pasión, y desinterés por "
+            '<a href="https://soundcloud.com/jaunmatrin">JAUN</a>'
+        )
+        signature.setOpenExternalLinks(True)
+        signature.setTextFormat(Qt.RichText)
+        signature.setStyleSheet("color: #777;")
+        layout.addWidget(signature)
+
+        links = QLabel(
+            f'<a href="{self.REPOSITORY_URL}">Repository</a>'
+            " &nbsp;·&nbsp; "
+            f'<a href="{self.ISSUES_URL}">Report an issue</a>'
+        )
+        links.setOpenExternalLinks(True)
+        links.setTextFormat(Qt.RichText)
+        layout.addWidget(links)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons.rejected.connect(self.reject)
+        buttons.accepted.connect(self.accept)
+        layout.addWidget(buttons)
+
+        self.adjustSize()
 
 
 class PlaylistParsingWorker(QThread):
@@ -544,13 +618,20 @@ class MainWindow(QMainWindow):
         sb = self.statusBar()
         sb.showMessage("Ready - Please connect a USB drive with Rekordbox data")
 
-        # Add current application version (from pyproject.toml) as a permanent right-side label
+        # Add current application version (from pyproject.toml) as a permanent right-side
+        # label. Clicking it opens the About dialog, which links to the repository.
         version = __version__
         if version and version != "0.0.0":
-            version_label = QLabel(f"v{version}")
+            version_label = ClickableLabel(f"v{version}")
             version_label.setStyleSheet("color: #888;")
-            version_label.setToolTip("Application version")
+            version_label.setToolTip("About Universal DJ USB")
+            version_label.setCursor(Qt.PointingHandCursor)
+            version_label.clicked.connect(self._show_about)
             sb.addPermanentWidget(version_label)
+
+    def _show_about(self) -> None:
+        """Open the About dialog."""
+        AboutDialog(self).exec()
 
     def _start_usb_detection(self):
         """Start USB drive detection in background."""
