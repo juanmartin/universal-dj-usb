@@ -44,11 +44,11 @@ jobs:
       matrix:
         include:
           # macOS Intel build
-          - os: macos-13
+          - os: macos-15-intel
             target: macos-x64
             arch: x64
           # macOS Apple Silicon build
-          - os: macos-14
+          - os: macos-15
             target: macos-arm64
             arch: arm64
           # Windows build
@@ -75,6 +75,10 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --all-extras
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: uv run pytest
 
       # Windows-specific fixes for PyInstaller DLL issues
       - name: Fix Windows PyInstaller dependencies

@@ -1,7 +1,7 @@
 # AGENTS.md — Universal DJ USB
 
 > Canonical entry point for AI coding agents. Read this file first.
-> Last verified: 2026-10-29 against `main` (`f27598a`).
+> Last verified: 2026-11-05 against `dev`.
 
 ## 0. Context budget
 
@@ -20,7 +20,7 @@ M3U, and M3U8, without touching the audio files.
 - **GUI:** `udj-gui` → `universal_dj_usb.gui:main` (PySide6/Qt6)
 - **Runtime:** Python 3.11–3.12, managed with `uv`
 - **Packaging:** PyInstaller; portable builds for macOS and Windows
-- **Version source of truth:** `pyproject.toml` (currently `0.2.2`)
+- **Version source of truth:** `pyproject.toml` (currently `0.3.0`)
 
 ## 2. Non-negotiables
 
@@ -58,7 +58,7 @@ uv sync --dev
 uv run udj --help
 uv run udj detect /path/to/usb
 uv run udj list-playlists /path/to/usb
-uv run udj convert /path/to/usb -f all -o ./out --debug
+uv run udj --debug convert /path/to/usb -f all -o ./out
 uv run udj-gui
 
 # Test and lint
@@ -87,14 +87,21 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 
 ## 5. Current state
 
-- Version is `0.2.2`; the macOS app bundle still hardcodes `0.1.0` until the TODO is fixed.
+- `dev` is the integration branch; feature work lands there via PR. `main` stays
+  release-only, and `feature/copy-playlist-files` is merged into `dev`.
+- Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
+- The v0.3.0 release is ready for final review; see
+  [docs/plans/v0.3-release.md](docs/plans/v0.3-release.md).
+- Next parser endeavor: OneLibrary/`exportLibrary.db` support; see
+  [docs/plans/onelibrary-support.md](docs/plans/onelibrary-support.md).
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
   the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
-- Relative-path behavior is fragile; see [generators.md](docs/agents/generators.md#path-semantics)
-  and the proposed ADR for path semantics.
+- [ADR-0006](docs/adr/0006-path-semantics.md) defines M3U/M3U8 path semantics;
+  [ADR-0009](docs/adr/0009-nml-volume-relative-paths.md) defines NML as always
+  volume-relative. Generators resolve PDB paths to real files first.
 - Cue points are modelled and NML can emit them, but no ANLZ extraction exists yet.
-- The test suite has 5 tests and roughly 14% coverage; passing tests do not prove parser
-  or generator behavior.
+- The test suite has 58 tests and roughly 29% coverage; passing tests do not prove parser
+  behavior against a real PDB.
 
 ## 6. Decision protocol
 

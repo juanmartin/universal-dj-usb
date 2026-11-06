@@ -12,8 +12,12 @@ was made, so later agents do not re-litigate it from a small context window.
 | [0003](0003-platform-build-matrix.md) | Accepted | 2026-10-29 | macOS GUI is onedir + `.app` + DMG; macOS CLI is onefile; Windows is onefile; no Linux packaging | — |
 | [0004](0004-test-data-policy.md) | Accepted | 2026-10-29 | Never commit real PDB/audio fixtures; use synthetic objects, mocks, and `tmp_path` | — |
 | [0005](0005-kaitai-generated-code.md) | Accepted | 2026-10-29 | Generated Kaitai files are read-only; regeneration source/path must be resolved before use | — |
-| [0006](0006-path-semantics.md) | Proposed | 2026-10-29 | Define an explicit relative/absolute path contract for generators | — |
+| [0006](0006-path-semantics.md) | Accepted; NML superseded by 0009 | 2026-10-29 | Relative playlist paths are relative to the playlist file's directory, and only for tracks inside it | — |
 | [0007](0007-pyside6-mojave-support.md) | Proposed | 2026-10-29 | Decide the supported PySide6/macOS 10.14 matrix | — |
+| [0008](0008-playlist-file-copy-layout.md) | Accepted | 2026-10-29 | Copy playlist audio into per-playlist folders with flat, optionally numbered filenames; playlists stay in the output root | — |
+| [0009](0009-nml-volume-relative-paths.md) | Accepted | 2026-11-01 | NML paths are always volume-relative; relative/absolute applies to M3U/M3U8 only | ADR-0006 for NML |
+| [0010](0010-format-folder-layout.md) | Accepted | 2026-11-02 | Optional `PLAYLISTS/<FORMAT>` layout with shared audio and output-root-contained `..` paths | ADR-0006 for the opt-in layout |
+| [0011](0011-release-notes.md) | Accepted | 2026-11-05 | Curated per-tag release notes are the release body; the workflow never pushes to protected `main` | — |
 
 ## Status meanings
 

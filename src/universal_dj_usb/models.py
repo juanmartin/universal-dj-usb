@@ -1,9 +1,9 @@
 """Data models for playlist and track information."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class KeySignature(Enum):
@@ -139,7 +139,7 @@ class PlaylistTree:
 class ConversionConfig:
     """Configuration for playlist conversion."""
 
-    relative_paths: bool = True
+    relative_paths: bool = True  # M3U/M3U8 relative paths; NML is volume-relative
     preserve_folder_structure: bool = True
     include_cue_points: bool = True
     include_loops: bool = True
@@ -147,8 +147,12 @@ class ConversionConfig:
     encoding: str = "utf-8"
     output_format: str = "nml"  # nml, m3u, m3u8, or all
     use_format_suffix: bool = False  # Whether to append format suffix to filenames
+    separate_format_folders: bool = False  # Put playlists under PLAYLISTS/<FORMAT>/
     m3u_extended: bool = True  # Whether to use extended M3U format with metadata
     m3u_absolute_paths: bool = False  # Whether to use absolute paths in M3U files
+    copy_files: bool = False  # Copy playlist audio into per-playlist folders
+    number_files: bool = False  # Prefix copied filenames with playlist order
+    overwrite_files: bool = False  # Overwrite existing files when copying
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "ConversionConfig":

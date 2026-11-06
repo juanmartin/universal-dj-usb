@@ -2,52 +2,58 @@
 PySide6-based GUI for Universal DJ USB Playlist Converter.
 """
 
-import sys
 import logging
-import threading
 import signal
-from pathlib import Path
-from typing import List, Optional, Dict, Any
+import sys
+import threading
 from dataclasses import dataclass
-
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QCheckBox,
-    QComboBox,
-    QTextEdit,
-    QProgressBar,
-    QFileDialog,
-    QGroupBox,
-    QScrollArea,
-    QFrame,
-    QSplitter,
-    QTabWidget,
-    QTreeWidget,
-    QTreeWidgetItem,
-    QMessageBox,
-    QStatusBar,
-    QSpinBox,
-    QGridLayout,
-    QRadioButton,
-    QHeaderView,
-    QSizePolicy,
-)
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize
-from PySide6.QtGui import QIcon, QFont, QPixmap, QPalette, QAction
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import psutil
-from typing import Optional
+from PySide6.QtCore import QSize, Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QDesktopServices,
+    QFont,
+    QIcon,
+    QPalette,
+    QPixmap,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QRadioButton,
+    QScrollArea,
+    QSizePolicy,
+    QSpinBox,
+    QSplitter,
+    QStatusBar,
+    QTabWidget,
+    QTextEdit,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from . import __version__
+from .exporter import ExportResult, export_playlists
+from .models import ConversionConfig, Playlist, PlaylistTree
 from .parser import RekordboxParser
-from .models import ConversionConfig, Playlist, ConversionResult, PlaylistTree
-from .generators import NMLGenerator, M3UGenerator, M3U8Generator
 
 
 @dataclass
@@ -93,10 +99,11 @@ class PlaylistParsingWorker(QThread):
 
 
 class ConversionWorker(QThread):
-    """Worker thread for converting playlists."""
+    """Worker thread for exporting playlists (copying and/or generating)."""
 
     conversion_progress = Signal(str, int)  # message, progress_percentage
-    conversion_complete = Signal(list)  # List[ConversionResult]
+    conversion_complete = Signal(object)  # ExportResult
+    conversion_error = Signal(str)  # Error message
 
     def __init__(
         self,
@@ -104,81 +111,47 @@ class ConversionWorker(QThread):
         config: ConversionConfig,
         output_dir: Path,
         usb_path: Path,
-        parser: RekordboxParser = None,
-    ):
+        parser: Optional[RekordboxParser] = None,
+        generate_playlists: bool = True,
+        enhance: bool = True,
+    ) -> None:
         super().__init__()
         self.playlists = playlists
         self.config = config
         self.output_dir = output_dir
         self.usb_path = usb_path
         self.parser = parser
+        self.generate_playlists = generate_playlists
+        self.enhance = enhance
+        self._cancel_event = threading.Event()
 
-    def run(self):
-        """Convert the selected playlists."""
-        results = []
-        total_playlists = len(self.playlists)
+    def cancel(self) -> None:
+        """Request cancellation between copied files and playlists."""
+        self._cancel_event.set()
 
-        # Enhance playlists with file metadata if parser is available
-        enhanced_playlists = []
-        if self.parser:
-            self.conversion_progress.emit("Enhancing track metadata...", 5)
-            for playlist in self.playlists:
-                enhanced_playlist = self.parser.enhance_playlist_tracks(
-                    playlist, self.usb_path
-                )
-                enhanced_playlists.append(enhanced_playlist)
-        else:
-            enhanced_playlists = self.playlists
-
-        # Create generators based on format
-        generators = []
-        if self.config.output_format in ["nml", "all"]:
-            generators.append(NMLGenerator(self.config))
-        if self.config.output_format in ["m3u", "all"]:
-            generators.append(M3UGenerator(self.config))
-        if self.config.output_format in ["m3u8", "all"]:
-            generators.append(M3U8Generator(self.config))
-
-        for i, playlist in enumerate(enhanced_playlists):
-            self.conversion_progress.emit(
-                f"Converting '{playlist.name}'...", int((i / total_playlists) * 100)
+    def run(self) -> None:
+        """Run the shared exporter and emit its result."""
+        try:
+            result = export_playlists(
+                playlists=self.playlists,
+                usb_path=self.usb_path,
+                output_dir=self.output_dir,
+                config=self.config,
+                parser=self.parser,
+                enhance=self.enhance,
+                generate_playlists=self.generate_playlists,
+                progress_callback=self.conversion_progress.emit,
+                is_cancelled=self._cancel_event.is_set,
             )
-
-            for generator in generators:
-                try:
-                    # Generate output filename
-                    filename = generator._sanitize_filename(playlist.name)
-
-                    # Add format suffix if requested (before the extension)
-                    if self.config.use_format_suffix:
-                        # Get the format name without the dot (e.g., "nml", "m3u", "m3u8")
-                        format_name = generator.file_extension.lstrip(".")
-                        filename = f"{filename}_{format_name}"
-
-                    # Add the file extension
-                    filename = f"{filename}{generator.file_extension}"
-
-                    output_path = self.output_dir / filename
-                    result = generator.generate(playlist, output_path, self.usb_path)
-                    results.append(result)
-
-                except Exception as e:
-                    results.append(
-                        ConversionResult(
-                            success=False,
-                            playlist_name=playlist.name,
-                            error_message=str(e),
-                        )
-                    )
-
-        self.conversion_progress.emit("Conversion complete!", 100)
-        self.conversion_complete.emit(results)
+            self.conversion_complete.emit(result)
+        except Exception as exc:
+            self.conversion_error.emit(f"Export failed: {exc}")
 
 
 class MainWindow(QMainWindow):
     """Main application window."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Universal DJ USB Playlist Converter")
         self.setMinimumSize(1000, 700)
@@ -186,12 +159,14 @@ class MainWindow(QMainWindow):
         # Data
         self.current_usb_path: Optional[Path] = None
         self.playlist_tree: Optional[PlaylistTree] = None
-        self.selected_playlists: Dict[str, Playlist] = {}
+        # Key by object identity: playlist names are not guaranteed unique.
+        self.selected_playlists: Dict[int, Playlist] = {}
         self.available_drives: List[USBDriveInfo] = []
         self.current_parser: Optional[RekordboxParser] = None
 
         # Workers - only conversion worker, USB and parsing are now synchronous
-        self.conversion_worker = None
+        self.conversion_worker: Optional[ConversionWorker] = None
+        self.export_running = False
 
         # Setup UI first
         self._setup_ui()
@@ -226,8 +201,8 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
 
         # Left panel - USB and Playlists
-        left_panel = self._create_left_panel()
-        splitter.addWidget(left_panel)
+        self.left_panel = self._create_left_panel()
+        splitter.addWidget(self.left_panel)
 
         # Right panel - Options and Output
         right_panel = self._create_right_panel()
@@ -320,16 +295,16 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
 
         # Create tabs for different sections
-        tab_widget = QTabWidget()
-        layout.addWidget(tab_widget)
+        self.tab_widget = QTabWidget()
+        layout.addWidget(self.tab_widget)
 
         # Conversion Options Tab
-        options_tab = self._create_options_tab()
-        tab_widget.addTab(options_tab, "Conversion Options")
+        self.options_tab = self._create_options_tab()
+        self.tab_widget.addTab(self.options_tab, "Conversion Options")
 
         # Output Tab
-        output_tab = self._create_output_tab()
-        tab_widget.addTab(output_tab, "Output & Logs")
+        self.output_tab = self._create_output_tab()
+        self.tab_widget.addTab(self.output_tab, "Output & Logs")
 
         return panel
 
@@ -342,11 +317,19 @@ class MainWindow(QMainWindow):
         output_group = QGroupBox("Output Settings")
         output_layout = QGridLayout(output_group)
 
-        # First row: Label and Browse button
+        # First row: Label and Browse/Open buttons
         output_layout.addWidget(QLabel("Output Directory:"), 0, 0)
         self.browse_button = QPushButton("Browse...")
         self.browse_button.clicked.connect(self._browse_output_directory)
         output_layout.addWidget(self.browse_button, 0, 1)
+
+        self.open_output_button = QPushButton("Open Folder")
+        self.open_output_button.setEnabled(False)
+        self.open_output_button.setToolTip(
+            "Open the output folder that contains the playlist files and audio folders."
+        )
+        self.open_output_button.clicked.connect(self._open_output_directory)
+        output_layout.addWidget(self.open_output_button, 0, 2)
 
         # Second row: Full-width path display
         self.output_dir_label = QLabel("No directory selected")
@@ -361,7 +344,7 @@ class MainWindow(QMainWindow):
         self.output_dir_label.setAlignment(
             Qt.AlignTop | Qt.AlignLeft
         )  # Align text to top-left
-        output_layout.addWidget(self.output_dir_label, 1, 0, 1, 2)  # Span both columns
+        output_layout.addWidget(self.output_dir_label, 1, 0, 1, 3)  # Span all columns
 
         layout.addWidget(output_group)
 
@@ -378,28 +361,54 @@ class MainWindow(QMainWindow):
         format_layout.addWidget(self.format_combo, 0, 1)
 
         # Format-specific options
-        self.use_suffix_checkbox = QCheckBox("Add format suffix to filenames")
+        self.use_suffix_checkbox = QCheckBox("Add format suffix to playlist filenames")
         self.use_suffix_checkbox.setToolTip(
-            "Adds format suffix to filename for clarity (e.g. 'My Playlist_nml.nml')"
+            "Adds format suffix to playlist filenames for clarity "
+            "(e.g. 'My Playlist_nml.nml')"
         )
         format_layout.addWidget(self.use_suffix_checkbox, 1, 0, 1, 2)
+
+        self.separate_format_folders_checkbox = QCheckBox(
+            "Put playlist files in PLAYLISTS/<format> folders"
+        )
+        self.separate_format_folders_checkbox.setToolTip(
+            "Writes playlist files under PLAYLISTS/NML, PLAYLISTS/M3U, and "
+            "PLAYLISTS/M3U8. Copied audio stays shared at the output root."
+        )
+        format_layout.addWidget(self.separate_format_folders_checkbox, 2, 0, 1, 2)
 
         layout.addWidget(format_group)
 
         # M3U Options (shown conditionally)
         self.m3u_group = QGroupBox("M3U/M3U8 Options")
+        self.m3u_group.setToolTip("Options for M3U/M3U8 playlist output.")
         m3u_layout = QGridLayout(self.m3u_group)
 
         self.m3u_extended_checkbox = QCheckBox("Use extended format (with metadata)")
         self.m3u_extended_checkbox.setChecked(True)
+        self.m3u_extended_checkbox.setToolTip(
+            "Writes the #EXTM3U header and #EXTINF lines with duration, artist, "
+            "and title (plus album/year/genre/BPM for M3U8). Uncheck only for "
+            "a plain path-only playlist for players that reject directives."
+        )
         m3u_layout.addWidget(self.m3u_extended_checkbox, 0, 0, 1, 2)
 
         # Path type radio buttons
-        m3u_layout.addWidget(QLabel("Path Type:"), 1, 0)
+        path_type_label = QLabel("Path Type:")
+        path_type_label.setToolTip(
+            "Applies to M3U/M3U8 only. NML uses Traktor volume-relative paths."
+        )
+        m3u_layout.addWidget(path_type_label, 1, 0)
 
         path_type_layout = QHBoxLayout()
         self.relative_paths_radio = QRadioButton("Relative paths")
+        self.relative_paths_radio.setToolTip(
+            "Use paths relative to the export folder when the track is inside it."
+        )
         self.absolute_paths_radio = QRadioButton("Absolute paths")
+        self.absolute_paths_radio.setToolTip(
+            "Always write absolute paths in M3U/M3U8 files."
+        )
         self.relative_paths_radio.setChecked(True)  # Default to relative
 
         path_type_layout.addWidget(self.relative_paths_radio)
@@ -409,6 +418,37 @@ class MainWindow(QMainWindow):
         m3u_layout.addLayout(path_type_layout, 1, 1)
 
         layout.addWidget(self.m3u_group)
+
+        # File Copy Options
+        copy_group = QGroupBox("File Copy Options")
+        copy_layout = QVBoxLayout(copy_group)
+
+        self.copy_files_checkbox = QCheckBox(
+            "Copy audio files into per-playlist folders"
+        )
+        self.copy_files_checkbox.setToolTip(
+            "Copies each playlist's audio into a folder named after the playlist. "
+            "Generated playlist files stay in the output root and point at the copies."
+        )
+        self.copy_files_checkbox.toggled.connect(self._update_conversion_button_state)
+        copy_layout.addWidget(self.copy_files_checkbox)
+
+        self.number_files_checkbox = QCheckBox(
+            "Prefix copied filenames with playlist order numbers"
+        )
+        self.number_files_checkbox.setToolTip(
+            "Example: '01 - Track Name.mp3'. Useful for keeping files sorted in "
+            "the same order as the playlist."
+        )
+        copy_layout.addWidget(self.number_files_checkbox)
+
+        self.overwrite_checkbox = QCheckBox("Overwrite existing copied files")
+        self.overwrite_checkbox.setToolTip(
+            "When unchecked, existing files in the playlist folder are skipped."
+        )
+        copy_layout.addWidget(self.overwrite_checkbox)
+
+        layout.addWidget(copy_group)
 
         # NML Options (shown conditionally)
         # self.nml_group = QGroupBox("NML (Traktor) Options")
@@ -444,11 +484,6 @@ class MainWindow(QMainWindow):
         )
         self.convert_button.clicked.connect(self._start_conversion)
         layout.addWidget(self.convert_button)
-
-        # Progress Bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
 
         layout.addStretch()
 
@@ -487,6 +522,20 @@ class MainWindow(QMainWindow):
         """
         )
         layout.addWidget(self.log_output)
+
+        # Progress and cancellation controls stay at the bottom of the log view.
+        progress_layout = QHBoxLayout()
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        progress_layout.addWidget(self.progress_bar, 1)
+
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.setToolTip("Stop the export after the current file.")
+        self.cancel_button.clicked.connect(self._cancel_conversion)
+        progress_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(progress_layout)
 
         return tab
 
@@ -854,10 +903,11 @@ class MainWindow(QMainWindow):
         """Handle playlist selection changes."""
         playlist = item.data(0, Qt.UserRole)
         if playlist:
+            key = id(playlist)
             if item.checkState(0) == Qt.Checked:
-                self.selected_playlists[playlist.name] = playlist
+                self.selected_playlists[key] = playlist
             else:
-                self.selected_playlists.pop(playlist.name, None)
+                self.selected_playlists.pop(key, None)
 
         self._update_conversion_button_state()
 
@@ -884,7 +934,14 @@ class MainWindow(QMainWindow):
         self.m3u_group.setVisible(show_m3u)
         # self.nml_group.setVisible(show_nml) # comentado porque aun no hay opciones
 
-    def _browse_output_directory(self):
+    def _selected_output_directory(self) -> Optional[Path]:
+        """Return the selected output directory, if any."""
+        text = self.output_dir_label.text().strip()
+        if not text or text == "No directory selected":
+            return None
+        return Path(text)
+
+    def _browse_output_directory(self) -> None:
         """Browse for output directory."""
         directory = QFileDialog.getExistingDirectory(
             self, "Select Output Directory", str(Path.home())
@@ -894,45 +951,108 @@ class MainWindow(QMainWindow):
             self.output_dir_label.setStyleSheet("color: #666; font-style: normal;")
             self._update_conversion_button_state()
 
-    def _update_conversion_button_state(self):
-        """Update the conversion button enabled state."""
-        has_playlists = len(self.selected_playlists) > 0
-        has_output_dir = self.output_dir_label.text() != "No directory selected"
-
-        self.convert_button.setEnabled(has_playlists and has_output_dir)
-
-        if has_playlists and has_output_dir:
-            count = len(self.selected_playlists)
-            self.convert_button.setText(
-                f"Convert {count} Selected Playlist{'s' if count != 1 else ''}"
+    def _open_output_directory(self) -> None:
+        """Open the selected output directory in the system file manager."""
+        output_dir = self._selected_output_directory()
+        if output_dir is None:
+            return
+        if not output_dir.is_dir():
+            QMessageBox.warning(
+                self,
+                "Open Folder",
+                f"The output folder does not exist yet:\n{output_dir}",
             )
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(output_dir))):
+            QMessageBox.warning(
+                self,
+                "Open Folder",
+                f"Could not open the output folder:\n{output_dir}",
+            )
+
+    def _update_conversion_button_state(self) -> None:
+        """Update export button enabled states and labels."""
+        has_playlists = len(self.selected_playlists) > 0
+        has_output_dir = self._selected_output_directory() is not None
+        ready = has_playlists and has_output_dir and not self.export_running
+        copy_mode = self.copy_files_checkbox.isChecked()
+
+        self.convert_button.setEnabled(ready)
+        self.open_output_button.setEnabled(has_output_dir)
+
+        if ready:
+            count = len(self.selected_playlists)
+            plural = "s" if count != 1 else ""
+            action = "Convert & Copy" if copy_mode else "Convert"
+            self.convert_button.setText(f"{action} {count} Selected Playlist{plural}")
         else:
             self.convert_button.setText("Convert Selected Playlists")
 
-    def _start_conversion(self):
-        """Start the conversion process."""
+    def _set_export_running(self, running: bool) -> None:
+        """Lock the interface while an export is running, or restore it."""
+        self.export_running = running
+
+        if running:
+            self.tab_widget.setCurrentWidget(self.output_tab)
+            self.progress_bar.setValue(0)
+            self.progress_bar.setVisible(True)
+
+        self.left_panel.setEnabled(not running)
+        self.options_tab.setEnabled(not running)
+        self.tab_widget.setTabEnabled(
+            self.tab_widget.indexOf(self.options_tab), not running
+        )
+        self.verbose_checkbox.setEnabled(not running)
+        self.clear_logs_button.setEnabled(not running)
+        self.cancel_button.setEnabled(running)
+
+        if not running:
+            self.progress_bar.setVisible(False)
+            self.progress_bar.setValue(0)
+            self.tab_widget.setCurrentWidget(self.options_tab)
+            self._update_conversion_button_state()
+
+    def _cancel_conversion(self) -> None:
+        """Request cancellation and keep the UI locked until the worker stops."""
+        if not self.export_running or self.conversion_worker is None:
+            return
+
+        self.cancel_button.setEnabled(False)
+        self._log_message("Cancelling export...")
+        self.statusBar().showMessage("Cancelling export...")
+        self.conversion_worker.cancel()
+
+    def _start_conversion(self) -> None:
+        """Start the conversion process, optionally copying audio files."""
+        self._start_export()
+
+    def _start_export(self) -> None:
+        """Start a shared exporter run in a worker thread."""
+        output_dir = self._selected_output_directory()
         if (
-            not self.selected_playlists
-            or self.output_dir_label.text() == "No directory selected"
+            self.export_running
+            or not self.selected_playlists
+            or output_dir is None
+            or not self.current_usb_path
         ):
             return
 
-        # Create conversion config
+        self.export_running = True
         config = self._create_conversion_config()
-        output_dir = Path(self.output_dir_label.text())
         playlists = list(self.selected_playlists.values())
 
-        # Disable UI during conversion
-        self.convert_button.setEnabled(False)
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setValue(0)
+        self._set_export_running(True)
 
-        # Start conversion worker
         self.conversion_worker = ConversionWorker(
-            playlists, config, output_dir, self.current_usb_path, self.current_parser
+            playlists=playlists,
+            config=config,
+            output_dir=output_dir,
+            usb_path=self.current_usb_path,
+            parser=self.current_parser,
         )
         self.conversion_worker.conversion_progress.connect(self._on_conversion_progress)
         self.conversion_worker.conversion_complete.connect(self._on_conversion_complete)
+        self.conversion_worker.conversion_error.connect(self._on_conversion_error)
         self.conversion_worker.start()
 
     def _create_conversion_config(self) -> ConversionConfig:
@@ -950,56 +1070,131 @@ class MainWindow(QMainWindow):
             include_loops=False,  # Not implemented yet
             output_format=format_map[self.format_combo.currentText()],
             use_format_suffix=self.use_suffix_checkbox.isChecked(),
+            separate_format_folders=self.separate_format_folders_checkbox.isChecked(),
             m3u_extended=self.m3u_extended_checkbox.isChecked(),
             m3u_absolute_paths=self.absolute_paths_radio.isChecked(),
+            copy_files=self.copy_files_checkbox.isChecked(),
+            number_files=self.number_files_checkbox.isChecked(),
+            overwrite_files=self.overwrite_checkbox.isChecked(),
         )
 
-    def _on_conversion_progress(self, message: str, progress: int):
-        """Handle conversion progress updates."""
+    def _on_conversion_progress(self, message: str, progress: int) -> None:
+        """Handle export progress updates."""
         self.progress_bar.setValue(progress)
         self._log_message(message)
         self.statusBar().showMessage(message)
 
-    def _on_conversion_complete(self, results: List[ConversionResult]):
-        """Handle conversion completion."""
-        # Re-enable UI
-        self.convert_button.setEnabled(True)
-        self.progress_bar.setVisible(False)
-        self._update_conversion_button_state()
+    def _on_conversion_complete(self, result: ExportResult) -> None:
+        """Handle export completion."""
+        successful = result.successful_conversions
+        failed = result.failed_conversions
+        has_copies = bool(result.copies)
 
-        # Show results
-        successful = [r for r in results if r.success]
-        failed = [r for r in results if not r.success]
+        self._log_message("\n=== Export Complete ===")
+        if result.conversions:
+            self._log_message(f"✅ Playlist files written: {len(successful)}")
+            self._log_message(f"❌ Playlist file failures: {len(failed)}")
 
-        self._log_message(f"\n=== Conversion Complete ===")
-        self._log_message(f"✅ Successful: {len(successful)}")
-        self._log_message(f"❌ Failed: {len(failed)}")
-
-        for result in successful:
-            self._log_message(f"✅ {result.playlist_name} -> {result.output_file}")
-
-        for result in failed:
-            self._log_message(f"❌ {result.playlist_name}: {result.error_message}")
-
-        # Show summary dialog
-        if failed:
-            QMessageBox.warning(
-                self,
-                "Conversion Complete",
-                f"Conversion completed with {len(failed)} errors.\nCheck the logs for details.",
+        for conversion in successful:
+            self._log_message(
+                f"✅ {conversion.playlist_name} -> {conversion.output_file}"
             )
-        else:
-            QMessageBox.information(
-                self,
-                "Conversion Complete",
-                f"Successfully converted {len(successful)} playlist(s)!",
+        for conversion in failed:
+            self._log_message(
+                f"❌ {conversion.playlist_name}: {conversion.error_message}"
             )
 
-        self.statusBar().showMessage(
-            f"Conversion complete - {len(successful)} successful, {len(failed)} failed"
+        for copy_result in result.copies:
+            self._log_message(
+                f"📁 {copy_result.playlist_name}: "
+                f"{copy_result.copied_count} copied, "
+                f"{copy_result.skipped_count} skipped, "
+                f"{copy_result.duplicate_count} duplicates, "
+                f"{copy_result.missing_count} missing, "
+                f"{copy_result.error_count} errors -> {copy_result.destination_folder}"
+            )
+            if copy_result.error:
+                self._log_message(f"❌ {copy_result.error}")
+            for item in copy_result.files:
+                if item.status.value in ("missing", "error") and item.error:
+                    self._log_message(f"⚠ {item.error}")
+
+        copy_summary = (
+            f"Copied {result.total_copied} file(s); "
+            f"skipped {result.total_skipped}, "
+            f"{result.total_duplicates} duplicate(s), "
+            f"{result.total_missing} missing, "
+            f"{result.total_errors} error(s)."
         )
 
-    def _log_message(self, message: str):
+        if result.cancelled:
+            self._log_message("Export canceled.")
+            QMessageBox.information(
+                self,
+                "Export Canceled",
+                "Export canceled before completion.",
+            )
+            self._set_export_running(False)
+            self.statusBar().showMessage("Export canceled")
+            return
+
+        if failed or not result.success or result.total_errors or result.total_missing:
+            details = ["Export completed with issues."]
+            if failed:
+                details.append(f"{len(failed)} playlist file failure(s).")
+            if has_copies:
+                details.append(copy_summary)
+            details.append("Check the logs for details.")
+            self._show_export_complete_dialog("\n".join(details), warning=True)
+        else:
+            if result.conversions:
+                message = f"Successfully wrote {len(successful)} playlist file(s)."
+            else:
+                message = "Copy completed successfully."
+            if has_copies:
+                message = f"{message}\n{copy_summary}"
+            self._show_export_complete_dialog(message, warning=False)
+
+        if result.conversions:
+            status = (
+                f"Export complete - {len(successful)} playlist files, "
+                f"{result.total_copied} files copied"
+            )
+        else:
+            status = f"Copy complete - {result.total_copied} files copied"
+        self._set_export_running(False)
+        self.statusBar().showMessage(status)
+
+    def _show_export_complete_dialog(self, message: str, warning: bool) -> None:
+        """Show the completion dialog with an option to open the output folder."""
+        box = QMessageBox(self)
+        box.setWindowTitle("Export Complete")
+        box.setText(message)
+        box.setIcon(
+            QMessageBox.Icon.Warning if warning else QMessageBox.Icon.Information
+        )
+
+        open_button = None
+        if self._selected_output_directory() is not None:
+            open_button = box.addButton(
+                "Open Folder", QMessageBox.ButtonRole.ActionRole
+            )
+        ok_button = box.addButton(QMessageBox.StandardButton.Ok)
+        box.setDefaultButton(ok_button)
+        box.setEscapeButton(ok_button)
+
+        box.exec()
+        if open_button is not None and box.clickedButton() is open_button:
+            self._open_output_directory()
+
+    def _on_conversion_error(self, message: str) -> None:
+        """Handle an unexpected exporter failure."""
+        self._log_message(f"❌ {message}")
+        QMessageBox.critical(self, "Export Error", message)
+        self._set_export_running(False)
+        self.statusBar().showMessage("Export failed")
+
+    def _log_message(self, message: str) -> None:
         """Add a message to the log output."""
         self.log_output.append(message)
         self.log_output.ensureCursorVisible()
@@ -1008,11 +1203,11 @@ class MainWindow(QMainWindow):
         if self.verbose_checkbox.isChecked():
             self.logger.info(message)
 
-    def _clear_logs(self):
+    def _clear_logs(self) -> None:
         """Clear the log output."""
         self.log_output.clear()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Handle application close."""
         print("Application closing, stopping background workers...")
 
@@ -1021,15 +1216,17 @@ class MainWindow(QMainWindow):
         # Stop conversion worker only
         if self.conversion_worker and self.conversion_worker.isRunning():
             print("Stopping conversion worker...")
-            self.conversion_worker.terminate()
-            self.conversion_worker.wait(3000)
+            self.conversion_worker.cancel()
+            if not self.conversion_worker.wait(5000):
+                self.conversion_worker.terminate()
+                self.conversion_worker.wait(1000)
             self.conversion_worker = None
 
         print("All workers stopped, accepting close event")
         event.accept()
 
 
-def main():
+def main() -> None:
     """Main entry point for the GUI application."""
     # Ensure we have a proper display environment
     if sys.platform.startswith("darwin"):  # macOS
@@ -1046,7 +1243,7 @@ def main():
     app.setQuitOnLastWindowClosed(True)
 
     # Signal handler for clean shutdown - Qt style
-    def signal_handler(sig, frame):
+    def signal_handler(sig: int, frame: Any) -> None:
         print("\n[App] Received interrupt signal, shutting down...")
         app.quit()
 

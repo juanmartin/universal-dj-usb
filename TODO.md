@@ -1,13 +1,15 @@
 # To Do
 
-- [ ] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
-- [ ] 🐛 Fix relative/absolute un m3u8 (doing the same currently)
+- [ ] 🚀 Release v0.3.0 from `dev` after final review — [plan](docs/plans/v0.3-release.md)
+- [ ] ✨ Support both Rekordbox library types (`export.pdb` and `exportLibrary.db`) with a library selector, so incomplete legacy PDB playlists are visible — [plan](docs/plans/onelibrary-support.md)
+- [x] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
+- [x] 🐛 Fix relative/absolute un m3u8 (doing the same currently) — see [ADR-0006](docs/adr/0006-path-semantics.md)
 - [ ] ✨ For m3u/8 choose OS destination! FEATURE
-- [ ] ✨ Export folder with playlist and files! FEATURE
+- [x] ✨ Export folder with playlist and files! FEATURE — implemented in [plan](docs/plans/copy-playlist-files.md)
 - [ ] ✨ Tooltips to help users
 - [ ] ✨ CASTELLANO support
 - [ ] ✨ Serato playlist support
-- [ ] ✨ Copy tracks to folder FEATURE
+- [x] ✨ Copy tracks to folder FEATURE — implemented in [plan](docs/plans/copy-playlist-files.md)
 - [ ] ✨ Enhance analysis with ANLZ data
 - [ ] ✨ Replace dialog! sure?
 - [ ] ✨ QUICK SAVE  (opinionated)
