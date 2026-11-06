@@ -9,8 +9,8 @@
 #     * workflow_run: uses the triggering workflow run id
 #     * manual: uses provided build_run_id or finds the latest successful Build run for the given tag
 # - Downloads artifacts from the Build run
-# - Generates/updates CHANGELOG.md with git-cliff
-# - Commits CHANGELOG.md back to the repo (using GITHUB_TOKEN)
+# - Uses curated notes from docs/releases/<tag>.md when present
+# - Falls back to a git-cliff-generated changelog otherwise
 # - Creates a draft GitHub Release (prerelease = true if tag contains '-'), attaching all downloaded artifacts
 
 name: Release
@@ -47,32 +47,41 @@ jobs:
       || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (full history)
+      - name: Checkout repository (full history and tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Determine build run id and tag
         id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_RUN_ID: ${{ github.event.inputs.build_run_id }}
         run: |
-          echo "event_name=${GITHUB_EVENT_NAME}"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
-            # Use the triggering Build run id provided by the event
-            echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          echo "event_name=${EVENT_NAME}"
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
 
-            # Try to infer the tag name from the triggering run.
-            # For tag-triggered Build runs, github.event.workflow_run.head_branch is usually null.
-            # We'll try to get the ref (ref) that triggered the Build run.
-            # The workflow_run object contains "head_sha" and "head_branch"; for tag pushes, head_branch is null.
-            # We'll try to get the tag by looking at the run's head_commit.ref or by resolving the tag from the repo tags.
-            # Best-effort: get tag from github.event.workflow_run.head_branch or from the event payload's ref (if available).
-            TAG_NAME="${{ github.event.workflow_run.head_branch || '' }}"
-            # fallback: use the workflow_run's head_sha to find an annotated/ lightweight tag that points to that sha
-            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+            # For tag pushes head_branch can be empty (or be the default branch).
+            # Resolve the tag that points at the Build run commit instead.
+            TAG_NAME="${HEAD_BRANCH}"
+            if [ -z "${TAG_NAME}" ] || ! printf '%s' "${TAG_NAME}" | grep -Eq '^v[0-9]'; then
+              TAG_NAME=$(git tag --points-at "${HEAD_SHA}" | sort -V | tail -n 1)
+            fi
+            if [ -z "${TAG_NAME}" ]; then
+              echo "ERROR: Could not resolve a release tag for commit ${HEAD_SHA}."
+              exit 1
+            fi
+            echo "tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           else
             # Manual dispatch: get inputs
-            echo "run_id=${{ github.event.inputs.build_run_id }}" >> $GITHUB_OUTPUT
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "run_id=${INPUT_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "tag=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Authenticate gh CLI (use GH_TOKEN; clear GITHUB_TOKEN for this step)
@@ -138,37 +147,49 @@ jobs:
           gh run download "${RUN_ID}" --dir artifacts || { echo "No artifacts found or download failed"; exit 1; }
           echo "Artifacts downloaded to artifacts/"
 
-      - name: Generate CHANGELOG.md with git-cliff
+      - name: Check for curated release notes
+        id: notes_file
+        env:
+          TAG: ${{ steps.vars.outputs.tag }}
+        run: |
+          if [ -f "docs/releases/${TAG}.md" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog fallback with git-cliff
+        if: steps.notes_file.outputs.present != 'true'
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --verbose
+          args: --verbose --tag ${{ steps.vars.outputs.tag }}
         env:
-          OUTPUT: CHANGELOG.md
+          OUTPUT: CHANGELOG.generated.md
           GITHUB_REPO: ${{ github.repository }}
 
-      - name: Commit and push CHANGELOG.md (if changed)
+      - name: Select release notes
+        id: notes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.vars.outputs.tag }}
         run: |
-          git config --global user.email "bot@users.noreply.github.com"
-          git config --global user.name "GitHub Actions Bot"
-          if git diff --quiet --exit-code -- CHANGELOG.md; then
-            echo "No changes to CHANGELOG.md"
+          NOTES="docs/releases/${TAG}.md"
+          if [ -f "${NOTES}" ]; then
+            echo "Using curated release notes: ${NOTES}"
+            cp "${NOTES}" release-body.md
           else
-            git add CHANGELOG.md
-            git commit -m "docs: Update CHANGELOG.md for ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_sha }}"
-            git push
+            echo "::warning::No curated notes at ${NOTES}; using the generated changelog."
+            cp CHANGELOG.generated.md release-body.md
           fi
 
       - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || github.event.workflow_run.head_sha }}
-          name: Release ${{ github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || github.event.workflow_run.head_sha }}
-          body_path: CHANGELOG.md
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: Universal DJ USB ${{ steps.vars.outputs.tag }}
+          body_path: release-body.md
           draft: true
-          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name || github.event.workflow_run.head_branch || '', '-') }}
+          prerelease: ${{ contains(steps.vars.outputs.tag, '-') }}
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
