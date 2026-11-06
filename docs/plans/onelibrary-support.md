@@ -22,20 +22,13 @@ incomplete legacy database.
 
 A real USB drive showed the legacy PDB and OneLibrary databases disagreeing:
 
-| Playlist | PDB entries | OneLibrary entries |
-|---|---:|---:|
-| CAB-GRECO | 0 | 63 |
-| CONCLAVE | 35 | 125 |
-| ESPINOSO | 18 | 78 |
-| PRINCIPE DISCOS | 184 | 304 |
-| TEKNIVAL E TODO | 64 | 84 |
-| amussik | 215 | 235 |
-| MADE EN CASA (1) | absent | 54 |
-
-The PDB had 4,269 playlist-entry rows; OneLibrary had 4,696. The difference is exactly the
-missing memberships. The generated NML/M3U/M3U8 for CAB-GRECO were valid but empty because
-the PDB reported zero tracks. `exportLibrary.db` and the desktop `master.db` both had the
-correct 63 entries. This is not an encoding or path bug.
+- One playlist that had 63 entries in OneLibrary had 0 entries in the PDB.
+- Several other playlists were partially truncated.
+- The PDB had 4,269 playlist-entry rows; OneLibrary had 4,696. The difference matches the
+  missing memberships.
+- A generated NML/M3U/M3U8 for the empty playlist was valid but empty because the PDB
+  reported zero tracks. OneLibrary and the desktop `master.db` both had the correct 63
+  entries. This is not an encoding or path bug.
 
 ## Proposed behavior
 
@@ -82,7 +75,7 @@ correct 63 entries. This is not an encoding or path bug.
 
 ## Evidence
 
-- `/Volumes/JAUN/PIONEER/rekordbox/exportLibrary.db` — 63 CAB-GRECO entries
-- `/Volumes/JAUN/PIONEER/rekordbox/export.pdb` — 0 CAB-GRECO entries
-- Rekordbox-exported `CAB-GRECO.m3u8` — 63 tracks
-- `sqlcipher3==0.6.4` successfully reads the OneLibrary database on macOS arm64
+- A real Rekordbox USB export with both `export.pdb` and `exportLibrary.db`.
+- OneLibrary reported 63 entries for a playlist that the PDB reported as empty.
+- The Rekordbox-exported M3U8 for that playlist contained 63 tracks.
+- `sqlcipher3==0.6.4` successfully reads `exportLibrary.db` on macOS arm64.
