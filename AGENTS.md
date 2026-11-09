@@ -1,7 +1,7 @@
 # AGENTS.md — Universal DJ USB
 
 > Canonical entry point for AI coding agents. Read this file first.
-> Last verified: 2026-11-05 against `dev`.
+> Last verified: 2026-11-09 against `dev`.
 
 ## 0. Context budget
 
