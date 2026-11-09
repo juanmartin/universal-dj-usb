@@ -32,3 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - only run the Release workflow for tag-driven builds ([97e3f8d](https://github.com/juanmartin/universal-dj-usb/commit/97e3f8d18b37f3093ebcf5febb6bdf0801bd8453))
 - bump the app version to 0.3.0 and read it from `pyproject.toml` ([c6306f6](https://github.com/juanmartin/universal-dj-usb/commit/c6306f6ff3f9cf5a8c20403895d38f66459ec1ac))
 - update macOS runners and test Windows before packaging ([8a3dfa1](https://github.com/juanmartin/universal-dj-usb/commit/8a3dfa19418466a0edb19a9e20297b7d94859d80))
+- name Windows release executables with version/architecture and add `jaunmatrin`
+  publisher metadata

@@ -2,7 +2,7 @@
 
 > **Scope:** PyInstaller specs, platform builds, versioning, CI, and release artifacts.
 > **Read when:** changing packaging, CI, versioning, or platform support.
-> **Last verified:** 2026-11-05 against `dev`.
+> **Last verified:** 2026-11-09 against `dev`.
 
 ## Local builds
 
@@ -99,7 +99,12 @@ Artifacts uploaded by the workflow:
 | Platform | Artifacts |
 |---|---|
 | macOS | DMG(s) and the raw `udj` CLI executable, renamed with version/arch |
-| Windows | `udj.exe` and `Universal DJ USB.exe` |
+| Windows | `Universal-DJ-USB-<version>-windows-x64.exe` and `udj-<version>-windows-x64.exe` |
+
+Windows release executables include `jaunmatrin` publisher metadata. They are still
+unsigned, so SmartScreen can show “Unknown Publisher” until they are code-signed. macOS
+Gatekeeper has the same limitation until the app is signed with a Developer ID and
+notarized. See the code-signing plan before changing this.
 
 A macOS `.app` `tar.gz` is created only as a fallback when a DMG is missing. The macOS CLI
 `tar.gz` produced locally by `build.sh` is **not** uploaded by CI.
@@ -118,6 +123,14 @@ A macOS `.app` `tar.gz` is created only as a fallback when a DMG is missing. The
 - Marks the release prerelease when the tag contains `-`.
 - Does **not** push `CHANGELOG.md` to `main`; `main` is protected and the curated notes
   file is the release source of truth.
+
+## Building without GitHub-hosted runners
+
+PyInstaller does not cross-compile. A Windows executable must be built on Windows, in a
+Windows VM, or in a Windows container. Run `.\build.ps1 -Both` on a Windows machine and
+upload the artifacts to a draft release manually. See
+[windows-build-without-ci.md](../plans/windows-build-without-ci.md) for the local release
+path and CI alternatives.
 
 ## macOS 10.14 / Mojave
 

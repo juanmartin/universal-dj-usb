@@ -166,6 +166,7 @@ app = BUNDLE(
         'CFBundleShortVersionString': APP_VERSION,
         'CFBundleVersion': APP_VERSION,
         'CFBundleDisplayName': 'Universal DJ USB',
+        'NSHumanReadableCopyright': 'Copyright (c) 2026 jaunmatrin',
         'NSPrincipalClass': 'NSApplication',
         'NSAppleScriptEnabled': False,
         'NSHighResolutionCapable': True,

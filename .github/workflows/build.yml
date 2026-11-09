@@ -295,12 +295,23 @@ jobs:
           Add-Content -Path $env:GITHUB_OUTPUT -Value "artifact_folder=$ARTIFACT_FOLDER"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "build_id=$BUILD_ID"
 
-          # Windows artifacts - copy executables with simple names inside versioned folder
-          if (Test-Path "dist/udj.exe") {
-            Copy-Item "dist/udj.exe" "artifacts/udj.exe"
+          # Prefer the versioned release filenames created by build.ps1.
+          $gui = Get-ChildItem "dist/Universal-DJ-USB-*-${{ matrix.target }}.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $gui) {
+            $gui = Get-Item "dist/Universal DJ USB.exe" -ErrorAction SilentlyContinue
           }
-          if (Test-Path "dist/Universal DJ USB.exe") {
-            Copy-Item "dist/Universal DJ USB.exe" "artifacts/Universal DJ USB.exe"
+          if ($gui) {
+            Copy-Item $gui.FullName "artifacts/$($gui.Name)"
+          }
+
+          $cli = Get-ChildItem "dist/udj-*-${{ matrix.target }}.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if (-not $cli) {
+            $cli = Get-Item "dist/udj.exe" -ErrorAction SilentlyContinue
+          }
+          if ($cli) {
+            Copy-Item $cli.FullName "artifacts/$($cli.Name)"
           }
 
           # Show what we created
