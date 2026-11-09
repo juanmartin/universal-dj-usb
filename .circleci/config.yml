@@ -99,5 +99,15 @@ jobs:
 workflows:
   build:
     jobs:
-      - linux-test
-      - windows-build
+      - linux-test:
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              only: /.*/
+      - windows-build:
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              only: /.*/
