@@ -9,7 +9,7 @@ from .copier import FileCopyResult, PlaylistCopyResult, copy_playlist_files
 from .generators import M3U8Generator, M3UGenerator, NMLGenerator
 from .generators.base import BaseGenerator
 from .models import ConversionConfig, ConversionResult, Playlist
-from .paths import sanitize_filename, unique_name
+from .paths import nml_volume_root_for, sanitize_filename, unique_name
 
 if TYPE_CHECKING:
     from .parser import RekordboxParser
@@ -193,7 +193,7 @@ def export_playlists(
                 for index, track in enumerate(playlist.tracks)
                 if index in copy_result.destinations_by_index
             ]
-            generator_usb_path = output_dir
+            generator_usb_path = nml_volume_root_for(output_dir)
 
         if not generate_playlists:
             continue

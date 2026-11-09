@@ -65,9 +65,10 @@ uv run mypy src/
 
 ## Testing reality
 
-The suite is **59 tests and roughly 32% coverage**. It covers synthetic parsing helpers,
-generator path modes, the copier/exporter, and the CLI copy workflows. It does not
-exercise the Kaitai parser end-to-end or a real Rekordbox USB drive.
+The suite is **60 tests and roughly 32% coverage**; one Windows-only NML test skips on
+macOS/Linux. It covers synthetic parsing helpers, generator path modes, the
+copier/exporter, and the CLI copy workflows. It does not exercise the Kaitai parser
+end-to-end or a real Rekordbox USB drive.
 
 - `tests/test_generators.py` covers extensions, M3U/M3U8 relative/absolute paths, NML
   volume-relative/Unicode/Windows-separator paths, and format-folder relative paths.

@@ -130,3 +130,16 @@ def volume_name_for(path: Path) -> str:
     if platform.system() == "Windows":
         return path.anchor.rstrip("\\/")
     return path.name
+
+
+def nml_volume_root_for(output_dir: Path) -> Path:
+    """Return the volume root to use for a copied NML export.
+
+    Traktor identifies a track by a volume plus a path inside that volume. On
+    Windows the volume is the drive root, so a copied export under
+    ``F:\\output`` must keep ``output`` in ``LOCATION/DIR``. macOS keeps the
+    existing output-root pseudo-volume behavior.
+    """
+    if platform.system() == "Windows" and output_dir.anchor:
+        return Path(output_dir.anchor)
+    return output_dir

@@ -19,6 +19,7 @@ was made, so later agents do not re-litigate it from a small context window.
 | [0010](0010-format-folder-layout.md) | Accepted | 2026-11-02 | Optional `PLAYLISTS/<FORMAT>` layout with shared audio and output-root-contained `..` paths | ADR-0006 for the opt-in layout |
 | [0011](0011-release-notes.md) | Accepted | 2026-11-05 | Curated per-tag release notes are the release body; the workflow never pushes to protected `main` | — |
 | [0012](0012-windows-release-artifacts.md) | Accepted | 2026-11-09 | Windows release executables include version/arch in the filename and `jaunmatrin` publisher metadata; signing remains separate | — |
+| [0013](0013-windows-copied-nml-root.md) | Accepted | 2026-11-09 | Copied NML exports on Windows use the drive root so `DIR` keeps the output folder | — |
 
 ## Status meanings
 

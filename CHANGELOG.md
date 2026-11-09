@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 - **nml:** use volume-relative paths ([0e894bd](https://github.com/juanmartin/universal-dj-usb/commit/0e894bd5e5639646b68471539c5d0d5f238598e2))
+- **windows:** keep the output folder in copied NML paths
 - **gui:** clarify M3U extended-format tooltip ([ae27de7](https://github.com/juanmartin/universal-dj-usb/commit/ae27de731340396d628d6f217826db42014ad5a1))
 - **paths:** re-anchor missing Contents paths ([d64541e](https://github.com/juanmartin/universal-dj-usb/commit/d64541ee1846070b6481e9c8c357818f1492ed61))
 

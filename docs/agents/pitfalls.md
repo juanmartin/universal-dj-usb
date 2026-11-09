@@ -95,7 +95,8 @@ the user's uncommitted work first.
 
 ## Testing
 
-- 59 tests, roughly 32% coverage; parser and most real-USB behavior are still untested.
+- 60 tests, roughly 32% coverage; one Windows-only NML test is skipped off Windows.
+  Parser and most real-USB behavior are still untested.
 - No PDB fixture; `*.pdb` is git-ignored.
 - Generator tests cover extensions plus relative/absolute path cases; copier/exporter/CLI
   tiny-file tests cover the copy workflow.
