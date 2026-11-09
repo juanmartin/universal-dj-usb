@@ -1,7 +1,7 @@
 # To Do
 
 - [ ] 🚀 Release v0.3.0 from `dev` after final review — [plan](docs/plans/v0.3-release.md)
-- [ ] 🧰 Build Windows without GitHub-hosted runners — local `build.ps1` + optional AppVeyor — [plan](docs/plans/windows-build-without-ci.md)
+- [ ] 🧰 Build Windows without GitHub-hosted runners — local `build.ps1` + optional AppVeyor/CircleCI — [plan](docs/plans/windows-build-without-ci.md)
 - [ ] ✨ Support both Rekordbox library types (`export.pdb` and `exportLibrary.db`) with a library selector, so incomplete legacy PDB playlists are visible — [plan](docs/plans/onelibrary-support.md)
 - [x] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
 - [x] 🐛 Fix relative/absolute un m3u8 (doing the same currently) — see [ADR-0006](docs/adr/0006-path-semantics.md)

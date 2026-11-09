@@ -28,9 +28,9 @@ architecture in the filename and `jaunmatrin` publisher metadata.
 |---|---|---|---|
 | **Local Windows build** | Free | Manual | Simplest; uses the Windows machine already available |
 | **AppVeyor** | Free for public repos | Tag/PR builds | Separate account; 1 concurrent job, 60-minute limit |
+| **CircleCI** | Free plan: 30,000 credits/month; Windows medium is 40 credits/min (~750 Windows min/month) | Tag/PR builds | Separate account; enough for this repo; Windows Server 2022 VMs |
 | **Self-hosted GitHub runner** | Free minutes | GitHub Actions | Only useful if Actions itself is not blocked by billing |
 | **Azure Pipelines** | 1,800 min/month with billing | Tag builds | Public-project free tier is retired; needs Azure billing |
-| **CircleCI** | Open-source credits | Tag builds | Windows consumes credits quickly; more setup |
 | **Windows VM on macOS** | Free/varies | Manual | Extra maintenance; already have a Windows box |
 | **Wine + Windows Python** | Free | Manual | Fragile PyInstaller output; not recommended for releases |
 
@@ -42,9 +42,12 @@ are beta and consume paid minutes; self-hosted GitLab is possible but unnecessar
 **Short term:** build locally on the Windows machine. This has no external dependency,
 uses the existing `build.ps1`, and matches what CI did.
 
-**If automation is wanted later:** add AppVeyor for the Windows job only. It is free for
-public repositories, Windows-native, and can trigger on tags. Keep macOS builds local or
-on GitHub Actions if that returns.
+**If automation is wanted later:** AppVeyor and CircleCI are both viable for the Windows
+job. AppVeyor has unlimited Windows minutes for public repos with a 60-minute job cap.
+CircleCI's Free plan gives 30,000 credits/month; its Windows medium executor costs 40
+credits/min, which is about 750 Windows minutes/month — ample for this project. CircleCI
+also covers Linux tests in the same account. Pick CircleCI if you want one CI for Linux
+and Windows; pick AppVeyor if you want the simplest Windows-only setup.
 
 Do **not** rely on cross-compiling from macOS. A Windows VM or the physical Windows box is
 the reliable path.
@@ -135,10 +138,26 @@ AppVeyor can coexist with the GitHub workflows and own only the Windows job. The
 open-source plan allows one concurrent job and a 60-minute build limit; the current build
 takes a few minutes.
 
+## CircleCI outline
+
+A `.circleci/config.yml` would need to:
+
+- use the `circleci/windows@5.0` orb with `win/server-2022`,
+- install `uv`,
+- run `uv sync --dev`,
+- run `.\build.ps1 -Both -SkipTests`,
+- `store_artifacts` the versioned executables,
+- on tag builds, use `gh release upload` with a GitHub token to attach them to the draft.
+
+The Windows medium executor is 4 CPU/16 GB and costs 40 credits/min. The Free plan's
+30,000 monthly credits are enough for roughly 750 Windows minutes, well above this
+project's few-minute builds. CircleCI can own the Windows job while macOS builds stay
+local.
+
 ## Follow-ups
 
 - [ ] Add a `-Package` switch to `build.ps1` that creates the versioned Windows zip.
-- [ ] Decide between local-only Windows builds and AppVeyor automation.
+- [ ] Decide between local-only Windows builds and AppVeyor/CircleCI automation.
 - [ ] Record the choice in an ADR and update `docs/agents/build-release.md`.
 - [ ] Revisit GitHub Actions after the billing issue is resolved; keep the tag-driven
       workflow as an optional path rather than the only one.
