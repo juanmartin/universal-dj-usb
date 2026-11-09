@@ -12,12 +12,15 @@ cross-compile: a Windows executable must be built on Windows, in a Windows VM, o
 Windows container.
 
 The Windows build is already scripted. `build.ps1` runs `uv sync --dev`, invokes the two
-PyInstaller specs, and leaves:
+PyInstaller specs, and leaves both the working executables and versioned release copies:
 
-- `dist\Universal DJ USB.exe` — GUI
-- `dist\udj.exe` — CLI
+- `dist\Universal DJ USB.exe` — local GUI executable
+- `dist\udj.exe` — local CLI executable
+- `dist\Universal-DJ-USB-<version>-windows-x64.exe` — release GUI executable
+- `dist\udj-<version>-windows-x64.exe` — release CLI executable
 
-That is the same build the Windows CI job runs.
+That is the same build the Windows CI job runs. The release copies include version and
+architecture in the filename and `jaunmatrin` publisher metadata.
 
 ## Options
 
@@ -66,11 +69,11 @@ uv sync --dev
 `build.ps1` runs the test suite by default. Use `-SkipTests` only after the suite has
 already passed elsewhere. The GUI test runs on Windows and covers the About dialog.
 
-Smoke-test both outputs:
+Smoke-test both release outputs:
 
 ```powershell
-dist\udj.exe --help
-dist\Universal DJ USB.exe
+dist\udj-0.3.0-windows-x64.exe --help
+dist\Universal-DJ-USB-0.3.0-windows-x64.exe
 ```
 
 Then convert a playlist in the GUI and run a CLI conversion to confirm the same artifacts
@@ -83,12 +86,13 @@ zip is easier to attach and download:
 
 ```powershell
 $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
-Compress-Archive -Path "dist\Universal DJ USB.exe","dist\udj.exe" `
+Compress-Archive `
+  -Path "dist\Universal-DJ-USB-$version-windows-x64.exe","dist\udj-$version-windows-x64.exe" `
   -DestinationPath "dist\Universal-DJ-USB-$version-windows-x64.zip" -Force
 ```
 
-If the release should keep the current separate-asset layout, upload the two `.exe` files
-directly instead.
+If the release should keep the current separate-asset layout, upload the two versioned
+`.exe` files directly instead.
 
 ## Manual release without Actions
 

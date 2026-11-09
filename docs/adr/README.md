@@ -18,6 +18,7 @@ was made, so later agents do not re-litigate it from a small context window.
 | [0009](0009-nml-volume-relative-paths.md) | Accepted | 2026-11-01 | NML paths are always volume-relative; relative/absolute applies to M3U/M3U8 only | ADR-0006 for NML |
 | [0010](0010-format-folder-layout.md) | Accepted | 2026-11-02 | Optional `PLAYLISTS/<FORMAT>` layout with shared audio and output-root-contained `..` paths | ADR-0006 for the opt-in layout |
 | [0011](0011-release-notes.md) | Accepted | 2026-11-05 | Curated per-tag release notes are the release body; the workflow never pushes to protected `main` | — |
+| [0012](0012-windows-release-artifacts.md) | Accepted | 2026-11-09 | Windows release executables include version/arch in the filename and `jaunmatrin` publisher metadata; signing remains separate | — |
 
 ## Status meanings
 

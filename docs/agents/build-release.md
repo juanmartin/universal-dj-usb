@@ -99,7 +99,12 @@ Artifacts uploaded by the workflow:
 | Platform | Artifacts |
 |---|---|
 | macOS | DMG(s) and the raw `udj` CLI executable, renamed with version/arch |
-| Windows | `udj.exe` and `Universal DJ USB.exe` |
+| Windows | `Universal-DJ-USB-<version>-windows-x64.exe` and `udj-<version>-windows-x64.exe` |
+
+Windows release executables include `jaunmatrin` publisher metadata. They are still
+unsigned, so SmartScreen can show “Unknown Publisher” until they are code-signed. macOS
+Gatekeeper has the same limitation until the app is signed with a Developer ID and
+notarized. See the code-signing plan before changing this.
 
 A macOS `.app` `tar.gz` is created only as a fallback when a DMG is missing. The macOS CLI
 `tar.gz` produced locally by `build.sh` is **not** uploaded by CI.

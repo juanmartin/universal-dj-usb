@@ -27,7 +27,11 @@ try {
 }
 
 $PLATFORM = "windows"
-$ARCH = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+$ARCH = switch ($env:PROCESSOR_ARCHITECTURE) {
+    "AMD64" { "x64" }
+    "ARM64" { "arm64" }
+    default { "x86" }
+}
 
 function Write-Header {
     Write-Host "Universal DJ USB - Build Script" -ForegroundColor $GREEN
@@ -126,11 +130,16 @@ function New-WindowsExecutable-GUI {
     # For onefile build, we get a single executable
     $exeName = "Universal DJ USB.exe"
     $exePath = "dist\$exeName"
+    $releaseName = "Universal-DJ-USB-$VERSION-$PLATFORM-$ARCH.exe"
+    $releasePath = "dist\$releaseName"
     
     if (Test-Path $exePath) {
+        Copy-Item $exePath $releasePath -Force -ErrorAction Stop
         Write-Host "✓ Single executable created: $exeName"
         Write-Host "  Location: $exePath"
         Write-Host "  Size: $((Get-Item $exePath).Length / 1MB | ForEach-Object { '{0:N1} MB' -f $_ })"
+        Write-Host "✓ Versioned release executable: $releaseName"
+        Write-Host "  Location: $releasePath"
         Write-Host ""
         Write-Host "Your portable application is ready to use!"
     } else {
@@ -142,11 +151,16 @@ function New-WindowsExecutable-CLI {
     # For onefile build, we get a single executable
     $exeName = "udj.exe"
     $exePath = "dist\$exeName"
+    $releaseName = "udj-$VERSION-$PLATFORM-$ARCH.exe"
+    $releasePath = "dist\$releaseName"
     
     if (Test-Path $exePath) {
+        Copy-Item $exePath $releasePath -Force -ErrorAction Stop
         Write-Host "✓ Single executable created: $exeName"
         Write-Host "  Location: $exePath"
         Write-Host "  Size: $((Get-Item $exePath).Length / 1MB | ForEach-Object { '{0:N1} MB' -f $_ })"
+        Write-Host "✓ Versioned release executable: $releaseName"
+        Write-Host "  Location: $releasePath"
         Write-Host ""
         Write-Host "Your portable CLI application is ready to use!"
     } else {

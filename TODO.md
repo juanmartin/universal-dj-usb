@@ -32,6 +32,6 @@
 - [x] output dir negro. ponerlo blanco y que se lea entero
 - [x] PORTABLE EXEcutable
   - [x] CI/CD Releases
-  - [ ] code signing y notarization (macos)?
+  - [ ] code signing (Windows Authenticode) + notarization (macOS Developer ID) — [plan](docs/plans/code-signing.md)
 - [x] `list-playlists` que la columna tengo mas ancho que la cantidad de tracks
 - [x] sorting en columnas + default rekordbox sorting
