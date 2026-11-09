@@ -27,10 +27,11 @@ try {
 }
 
 $PLATFORM = "windows"
-$ARCH = switch ($env:PROCESSOR_ARCHITECTURE) {
-    "AMD64" { "x64" }
-    "ARM64" { "arm64" }
-    default { "x86" }
+$ARCH = "x86"
+if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") {
+    $ARCH = "x64"
+} elseif ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+    $ARCH = "arm64"
 }
 
 function Write-Header {
