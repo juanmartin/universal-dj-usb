@@ -69,7 +69,7 @@ def test_copy_and_nml_export_uses_the_volume_root(tmp_path):
     if platform.system() == "Windows":
         relative_output = "/".join(output.relative_to(volume_root).parts)
         dir_prefix = f"/:{relative_output.replace('/', '/:')}/:"
-        key_prefix = f"{volume}:/:{relative_output.replace('/', '/:')}/:"
+        key_prefix = f"{volume}/:{relative_output.replace('/', '/:')}/:"
     else:
         dir_prefix = "/:"
         key_prefix = f"{volume}/:"
@@ -101,7 +101,7 @@ def test_copy_and_nml_export_on_windows_keeps_output_folder_in_path(tmp_path):
     relative_output = "/".join(output.relative_to(drive_root).parts)
     expected_dir = f"/:{relative_output.replace('/', '/:')}/:HONGUI GURL/:"
     expected_key = (
-        f"{volume}:/:{relative_output.replace('/', '/:')}/:HONGUI GURL/:song.mp3"
+        f"{volume}/:{relative_output.replace('/', '/:')}/:HONGUI GURL/:song.mp3"
     )
 
     assert f'VOLUME="{volume}"' in text
