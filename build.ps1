@@ -64,7 +64,7 @@ function Clean-Build {
     Write-Host "Cleaning build artifacts..." -ForegroundColor $YELLOW
     if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
     if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
-    Write-Host "✓ Build artifacts cleaned"
+    Write-Host "[OK] Build artifacts cleaned"
     Write-Host ""
 }
 
@@ -75,7 +75,7 @@ function Install-Dependencies {
         Write-Error "Failed to install dependencies"
         exit 1
     }
-    Write-Host "✓ Dependencies installed"
+    Write-Host "[OK] Dependencies installed"
     Write-Host ""
 }
 
@@ -103,7 +103,7 @@ function Build-GUI {
     Write-Host "Creating portable Windows executable..." -ForegroundColor $YELLOW
     New-WindowsExecutable-GUI
     
-    Write-Host "✓ GUI build completed"
+    Write-Host "[OK] GUI build completed"
 }
 
 function Build-CLI {
@@ -124,7 +124,7 @@ function Build-CLI {
     Write-Host "Creating portable CLI executable..." -ForegroundColor $YELLOW
     New-WindowsExecutable-CLI
     
-    Write-Host "✓ CLI build completed"
+    Write-Host "[OK] CLI build completed"
 }
 
 function New-WindowsExecutable-GUI {
@@ -136,10 +136,10 @@ function New-WindowsExecutable-GUI {
     
     if (Test-Path $exePath) {
         Copy-Item $exePath $releasePath -Force -ErrorAction Stop
-        Write-Host "✓ Single executable created: $exeName"
+        Write-Host "[OK] Single executable created: $exeName"
         Write-Host "  Location: $exePath"
         Write-Host "  Size: $((Get-Item $exePath).Length / 1MB | ForEach-Object { '{0:N1} MB' -f $_ })"
-        Write-Host "✓ Versioned release executable: $releaseName"
+        Write-Host "[OK] Versioned release executable: $releaseName"
         Write-Host "  Location: $releasePath"
         Write-Host ""
         Write-Host "Your portable application is ready to use!"
@@ -157,10 +157,10 @@ function New-WindowsExecutable-CLI {
     
     if (Test-Path $exePath) {
         Copy-Item $exePath $releasePath -Force -ErrorAction Stop
-        Write-Host "✓ Single executable created: $exeName"
+        Write-Host "[OK] Single executable created: $exeName"
         Write-Host "  Location: $exePath"
         Write-Host "  Size: $((Get-Item $exePath).Length / 1MB | ForEach-Object { '{0:N1} MB' -f $_ })"
-        Write-Host "✓ Versioned release executable: $releaseName"
+        Write-Host "[OK] Versioned release executable: $releaseName"
         Write-Host "  Location: $releasePath"
         Write-Host ""
         Write-Host "Your portable CLI application is ready to use!"
@@ -176,7 +176,7 @@ function Invoke-Tests {
         Write-Error "Tests failed"
         exit 1
     }
-    Write-Host "✓ Tests passed"
+    Write-Host "[OK] Tests passed"
     Write-Host ""
 }
 
@@ -244,4 +244,4 @@ if ($BUILD_CLI) {
 
 Show-Results
 
-Write-Host "✓ Build completed successfully!" -ForegroundColor $GREEN
+Write-Host "[OK] Build completed successfully!" -ForegroundColor $GREEN
