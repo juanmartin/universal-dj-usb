@@ -1,10 +1,13 @@
 """Tests for the shared playlist exporter."""
 
+import platform
 from pathlib import Path
+
+import pytest
 
 from universal_dj_usb.exporter import export_playlists
 from universal_dj_usb.models import ConversionConfig, Playlist, Track
-from universal_dj_usb.paths import volume_name_for
+from universal_dj_usb.paths import nml_volume_root_for, volume_name_for
 
 
 def _make_usb(tmp_path: Path) -> Path:
@@ -45,7 +48,7 @@ def test_copy_and_m3u8_export_is_self_contained(tmp_path):
     assert str(usb) not in playlist_file.read_text(encoding="utf-8")
 
 
-def test_copy_and_nml_export_uses_export_root_as_volume(tmp_path):
+def test_copy_and_nml_export_uses_the_volume_root(tmp_path):
     usb = _make_usb(tmp_path)
     playlist = Playlist(
         name="Set A",
@@ -60,11 +63,50 @@ def test_copy_and_nml_export_uses_export_root_as_volume(tmp_path):
     text = playlist_file.read_text(encoding="utf-8")
     assert result.success
     assert playlist_file.exists()
-    volume = volume_name_for(output)
+
+    volume_root = nml_volume_root_for(output)
+    volume = volume_name_for(volume_root)
+    if platform.system() == "Windows":
+        relative_output = "/".join(output.relative_to(volume_root).parts)
+        dir_prefix = f"/:{relative_output.replace('/', '/:')}/:"
+        key_prefix = f"{volume}:/:{relative_output.replace('/', '/:')}/:"
+    else:
+        dir_prefix = "/:"
+        key_prefix = f"{volume}/:"
+
     assert f'VOLUME="{volume}"' in text
-    assert 'DIR="/:Set A/:"' in text
+    assert f'DIR="{dir_prefix}Set A/:"' in text
     assert 'FILE="song.mp3"' in text
-    assert f"{volume}/:Set A/:song.mp3" in text
+    assert f"{key_prefix}Set A/:song.mp3" in text
+
+
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Windows drive-root NML semantics",
+)
+def test_copy_and_nml_export_on_windows_keeps_output_folder_in_path(tmp_path):
+    usb = _make_usb(tmp_path)
+    playlist = Playlist(
+        name="HONGUI GURL",
+        tracks=[_track(usb, "Contents/Artist/Album/song.mp3")],
+    )
+    output = tmp_path / "udj-new-PLAYLISTS" / "windows"
+    config = ConversionConfig(output_format="nml", copy_files=True)
+
+    export_playlists([playlist], usb, output, config)
+
+    text = (output / "HONGUI GURL.nml").read_text(encoding="utf-8")
+    drive_root = Path(output.anchor)
+    volume = volume_name_for(drive_root)
+    relative_output = "/".join(output.relative_to(drive_root).parts)
+    expected_dir = f"/:{relative_output.replace('/', '/:')}/:HONGUI GURL/:"
+    expected_key = (
+        f"{volume}:/:{relative_output.replace('/', '/:')}/:HONGUI GURL/:song.mp3"
+    )
+
+    assert f'VOLUME="{volume}"' in text
+    assert f'DIR="{expected_dir}"' in text
+    assert f'PRIMARYKEY TYPE="TRACK" KEY="{expected_key}"' in text
 
 
 def test_numbered_copy_is_reflected_in_playlist(tmp_path):

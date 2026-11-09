@@ -182,7 +182,7 @@ In the Conversion Options tab:
 
 ### 7. Verification and close-out
 
-- [x] `uv run pytest` (59 tests pass)
+- [x] `uv run pytest` (60 tests pass)
 - [x] `black` / `isort` on new files and tests
 - [ ] `uv run flake8 src/ tests/` (repo has pre-existing lint debt; new files pass
       `flake8 --max-line-length=88`, touched legacy files retain pre-existing warnings)

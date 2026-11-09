@@ -64,14 +64,17 @@ always carries `BITRATE`, `GENRE`, `LABEL`, `COMMENT`, `RATING`, `FLAGS`, and `F
 - `_volume_relative_path()` returns `(volume, relative_path)`. It prefers the supplied
   volume root (`usb_path` for normal conversion, the output root for copied exports), then
   falls back to a macOS `/Volumes/<name>` volume or a Windows drive anchor.
+- Copied NML exports on Windows use the **drive root** as the volume root, so
+  `LOCATION/DIR` keeps the output folder path. Normal (non-copied) exports still use the
+  USB root. See [ADR-0013](../adr/0013-windows-copied-nml-root.md).
 - `_generate_track_key()` and `_add_track_to_collection()` use that same pair, so
   `LOCATION/DIR` and `PRIMARYKEY` cannot disagree. `LOCATION/FILE` uses the resolved source
   filename, not the raw PDB path.
 - NML ignores `relative_paths` and `m3u_absolute_paths`; Traktor has no playlist-relative
   path model. See [ADR-0009](../adr/0009-nml-volume-relative-paths.md).
 - `volume_name_for()` supplies the volume label: a Windows drive anchor (`D:`) or the
-  final component of the volume root (`USB`, or the export folder name for copied
-  exports).
+  final component of the volume root (`USB`, or the export folder name for copied exports
+  on macOS).
 
 ### Musical keys
 
