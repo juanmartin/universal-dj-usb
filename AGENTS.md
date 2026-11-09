@@ -90,8 +90,9 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
 - `dev` is the integration branch; feature work lands there via PR. `main` stays
   release-only, and `feature/copy-playlist-files` is merged into `dev`.
 - Version is `0.3.0`; the macOS app bundle reads its version from `pyproject.toml`.
-- The v0.3.0 release is ready for final review; see
-  [docs/plans/v0.3-release.md](docs/plans/v0.3-release.md).
+- v0.3.0 was released on 2026-11-09:
+  [Universal DJ USB v0.3.0](https://github.com/juanmartin/universal-dj-usb/releases/tag/v0.3.0).
+  CircleCI is the active CI ([ADR-0014](docs/adr/0014-circleci-active-ci.md)).
 - Next parser endeavor: OneLibrary/`exportLibrary.db` support; see
   [docs/plans/onelibrary-support.md](docs/plans/onelibrary-support.md).
 - `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on

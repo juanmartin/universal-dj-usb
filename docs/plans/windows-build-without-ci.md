@@ -1,6 +1,6 @@
 # Plan: Building Windows Without GitHub-Hosted Runners
 
-> **Status:** Proposed; no CI provider chosen yet
+> **Status:** Active; CircleCI is the Windows CI
 > **Branch:** `dev`
 > **Last updated:** 2026-11-09
 
@@ -151,9 +151,10 @@ The repository now has `.circleci/config.yml`:
 Project settings:
 
 - Trigger: **PR opened or pushed to, default branch and tag pushes**.
-- Add `GH_TOKEN` under **Project Settings → Environment Variables** with `repo` scope if
-  you want tag builds to attach Windows assets to the draft release. Without it, the
-  upload step is skipped and the artifacts remain available in CircleCI.
+- Add `GH_TOKEN` under **Project Settings → Environment Variables** with
+  `Contents: Read and write` if you want tag builds to attach Windows assets to the draft
+  release. Without it, tag builds fail at the upload step; PR/branch builds skip upload
+  and keep the artifacts in CircleCI.
 
 The Windows medium executor is 4 CPU/16 GB and costs 40 credits/min. The Free plan's
 30,000 monthly credits are enough for roughly 750 Windows minutes, well above this
@@ -163,7 +164,9 @@ local.
 ## Follow-ups
 
 - [ ] Add a `-Package` switch to `build.ps1` that creates the versioned Windows zip.
-- [ ] Decide between local-only Windows builds and AppVeyor/CircleCI automation.
-- [ ] Record the choice in an ADR and update `docs/agents/build-release.md`.
+- [x] Choose CircleCI for Windows automation (ADR-0014).
+- [x] Record the choice in ADR-0014 and update `docs/agents/build-release.md`.
+- [ ] Make the tag upload idempotent (delete existing assets before upload) so a
+      duplicate/rerun does not 404.
 - [ ] Revisit GitHub Actions after the billing issue is resolved; keep the tag-driven
       workflow as an optional path rather than the only one.
