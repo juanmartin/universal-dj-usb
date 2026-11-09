@@ -1,11 +1,9 @@
 name: Build
 
+# GitHub Actions is disabled while CircleCI is the active CI.
+# Keep this workflow as a manual fallback if GitHub-hosted runners return.
 on:
-  push:
-    tags: ["v*"] # Build on version tags
-  pull_request:
-    branches: [main]
-  workflow_dispatch: # manual
+  workflow_dispatch:
 
 env:
   APP_NAME: "Universal DJ USB"

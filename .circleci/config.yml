@@ -50,20 +50,24 @@ jobs:
               exit 0
             }
             if (-not $env:GH_TOKEN) {
-              Write-Host "GH_TOKEN is not set; skipping release upload."
-              exit 0
+              Write-Host "ERROR: GH_TOKEN is not set; cannot upload release assets."
+              exit 1
             }
 
             if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
               choco install gh -y --no-progress
             }
             $env:Path = "C:\Program Files\GitHub CLI;$env:Path"
+            if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+              Write-Host "ERROR: gh CLI is not available after installation."
+              exit 1
+            }
 
             $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
             $tag = $env:CIRCLE_TAG
             if ($tag -ne "v$version") {
-              Write-Host "Tag $tag does not match pyproject version v$version; skipping release upload."
-              exit 0
+              Write-Host "ERROR: tag $tag does not match pyproject version v$version."
+              exit 1
             }
 
             $isDraft = gh release view $tag --json isDraft --jq '.isDraft' 2>$null
@@ -74,15 +78,23 @@ jobs:
               } else {
                 gh release create $tag --draft --title "Universal DJ USB $tag" --generate-notes
               }
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "ERROR: gh release create failed with exit code $LASTEXITCODE."
+                exit 1
+              }
             } elseif ($isDraft -ne "true") {
-              Write-Host "Release $tag is already published; skipping upload."
-              exit 0
+              Write-Host "ERROR: release $tag is already published; refusing to upload."
+              exit 1
             }
 
             gh release upload $tag `
               "dist\Universal-DJ-USB-$version-windows-x64.exe" `
               "dist\udj-$version-windows-x64.exe" `
               --clobber
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "ERROR: gh release upload failed with exit code $LASTEXITCODE."
+              exit 1
+            }
 
 workflows:
   build:

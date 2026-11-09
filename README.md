@@ -8,7 +8,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/juanmartin/universal-dj-usb/build.yml?branch=main)](https://github.com/juanmartin/universal-dj-usb/actions)
+[![CircleCI](https://circleci.com/gh/juanmartin/universal-dj-usb.svg?style=shield)](https://app.circleci.com/pipelines/github/juanmartin/universal-dj-usb)
 ![GitHub Release](https://img.shields.io/github/v/release/juanmartin/universal-dj-usb)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/juanmartin/universal-dj-usb/total)
 [![PR's Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat)](http://makeapullrequest.com)
