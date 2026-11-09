@@ -1,8 +1,7 @@
-# Release workflow
-# - Runs automatically after a successful tag-driven "Build" (workflow_run from a push).
-# - Ignores Build runs from pull_request and workflow_dispatch so they cannot create releases.
-# - Can also be manually triggered from the Actions UI (workflow_dispatch).
-#   When manually triggered you must provide the tag (and optionally build_run_id).
+# Release workflow (manual fallback; CircleCI is the active CI)
+# - Triggered manually from the Actions UI (workflow_dispatch).
+# - You must provide the tag and optionally a Build run id.
+# - The automatic workflow_run trigger is disabled while GitHub-hosted runners are blocked.
 #
 # Behavior:
 # - Determines the Build workflow run id to download artifacts from:
@@ -15,13 +14,9 @@
 
 name: Release
 
+# GitHub Actions is disabled while CircleCI is the active CI.
+# Keep this workflow as a manual fallback if GitHub-hosted runners return.
 on:
-  workflow_run:
-    workflows:
-      - "Build"
-    types:
-      - completed
-
   workflow_dispatch:
     inputs:
       tag:
