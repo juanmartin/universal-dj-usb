@@ -1,10 +1,12 @@
 # To Do
 
-- [ ] 🚀 Release v0.3.0 from `dev` after final review — [plan](docs/plans/v0.3-release.md)
+- [x] 🚀 Release v0.3.0 from `dev` after final review — [plan](docs/plans/v0.3-release.md)
 - [ ] 🧰 Windows CI/release without GitHub-hosted runners — CircleCI active — [plan](docs/plans/windows-build-without-ci.md)
   - [x] Add `.circleci/config.yml` with Linux tests, Windows build, artifacts, and tag upload
   - [x] Verify CircleCI Linux + Windows on PR and tag pipelines
-  - [ ] Fix/verify the CircleCI tag upload to the draft release (`GH_TOKEN` step log)
+  - [x] Confirm the tag pipeline uploads the Windows assets to the draft release
+  - [ ] Make the tag upload idempotent so a duplicate/rerun does not 404
+- [ ] ✨ Easy presets and an "Advanced" section: simplify the default flow and move detailed options behind Advanced
 - [ ] ✨ Support both Rekordbox library types (`export.pdb` and `exportLibrary.db`) with a library selector, so incomplete legacy PDB playlists are visible — [plan](docs/plans/onelibrary-support.md)
 - [x] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`
 - [x] 🐛 Fix relative/absolute un m3u8 (doing the same currently) — see [ADR-0006](docs/adr/0006-path-semantics.md)
