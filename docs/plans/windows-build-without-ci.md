@@ -138,16 +138,22 @@ AppVeyor can coexist with the GitHub workflows and own only the Windows job. The
 open-source plan allows one concurrent job and a 60-minute build limit; the current build
 takes a few minutes.
 
-## CircleCI outline
+## CircleCI setup
 
-A `.circleci/config.yml` would need to:
+The repository now has `.circleci/config.yml`:
 
-- use the `circleci/windows@5.0` orb with `win/server-2022`,
-- install `uv`,
-- run `uv sync --dev`,
-- run `.\build.ps1 -Both -SkipTests`,
-- `store_artifacts` the versioned executables,
-- on tag builds, use `gh release upload` with a GitHub token to attach them to the draft.
+- `linux-test` uses `cimg/python:3.11`, installs `uv`, and runs `uv run pytest`.
+- `windows-build` uses `circleci/windows@5.0` with `win/server-2022`, installs `uv`, runs
+  `.\build.ps1 -Both`, and stores the versioned executables as CircleCI artifacts.
+- On tag builds, if `GH_TOKEN` is set, it creates or updates the draft GitHub Release and
+  uploads the versioned Windows executables.
+
+Project settings:
+
+- Trigger: **PR opened or pushed to, default branch and tag pushes**.
+- Add `GH_TOKEN` under **Project Settings → Environment Variables** with `repo` scope if
+  you want tag builds to attach Windows assets to the draft release. Without it, the
+  upload step is skipped and the artifacts remain available in CircleCI.
 
 The Windows medium executor is 4 CPU/16 GB and costs 40 credits/min. The Free plan's
 30,000 monthly credits are enough for roughly 750 Windows minutes, well above this

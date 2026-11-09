@@ -1,0 +1,91 @@
+version: 2.1
+
+orbs:
+  win: circleci/windows@5.0
+
+jobs:
+  linux-test:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run:
+          name: Install uv
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Install dependencies
+          command: uv sync --dev
+      - run:
+          name: Run tests
+          command: uv run pytest
+
+  windows-build:
+    executor: win/server-2022
+    steps:
+      - checkout
+      - run:
+          name: Build Windows executables
+          command: |
+            irm https://astral.sh/uv/install.ps1 | iex
+            $env:Path = "$env:USERPROFILE\.local\bin;$env:USERPROFILE\.cargo\bin;$env:Path"
+            uv --version
+            .\build.ps1 -Both
+      - run:
+          name: Collect release artifacts
+          command: |
+            New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+            Copy-Item "dist\Universal-DJ-USB-*-windows-*.exe" artifacts\
+            Copy-Item "dist\udj-*-windows-*.exe" artifacts\
+            Get-ChildItem artifacts | Format-Table -AutoSize
+      - store_artifacts:
+          path: artifacts
+          destination: windows
+      - run:
+          name: Upload tag artifacts to draft release
+          command: |
+            if (-not $env:CIRCLE_TAG) {
+              Write-Host "Not a tag build; skipping release upload."
+              exit 0
+            }
+            if (-not $env:GH_TOKEN) {
+              Write-Host "GH_TOKEN is not set; skipping release upload."
+              exit 0
+            }
+
+            if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+              choco install gh -y --no-progress
+            }
+            $env:Path = "C:\Program Files\GitHub CLI;$env:Path"
+
+            $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+            $tag = $env:CIRCLE_TAG
+            if ($tag -ne "v$version") {
+              Write-Host "Tag $tag does not match pyproject version v$version; skipping release upload."
+              exit 0
+            }
+
+            $isDraft = gh release view $tag --json isDraft --jq '.isDraft' 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              $notes = "docs/releases/$tag.md"
+              if (Test-Path $notes) {
+                gh release create $tag --draft --title "Universal DJ USB $tag" --notes-file $notes
+              } else {
+                gh release create $tag --draft --title "Universal DJ USB $tag" --generate-notes
+              }
+            } elseif ($isDraft -ne "true") {
+              Write-Host "Release $tag is already published; skipping upload."
+              exit 0
+            }
+
+            gh release upload $tag `
+              "dist\Universal-DJ-USB-$version-windows-x64.exe" `
+              "dist\udj-$version-windows-x64.exe" `
+              --clobber
+
+workflows:
+  build:
+    jobs:
+      - linux-test
+      - windows-build
