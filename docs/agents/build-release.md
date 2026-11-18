@@ -129,31 +129,39 @@ path and CI alternatives.
 
 ## macOS 10.14 / Mojave
 
-`main` does not include the Mojave-specific build work. The `mojave-build` branch adds:
+The modern macOS artifact is **not** Mojave-compatible. It is x86_64, but its bundled
+Qt comes from PySide6 6.9.1, whose wheels target macOS 12. Use the separate legacy build
+([ADR-0007](../adr/0007-pyside6-mojave-support.md)):
 
-- `pyi_rth_pyside6_macos.py`, a PyInstaller runtime hook that sets Qt library paths and
-  patches `@rpath`/`DYLD_LIBRARY_PATH` for `.app` bundles.
-- Extra rpath/framework handling in `udj_gui_macos.spec`.
+```bash
+./build_mojave.sh
+```
 
-The spec comments state that QtQml/QtQuick are required by PySide6 on macOS 10.14 even if
-the app does not import them directly. On `main` they are still in `qt_excludes`; the
-`mojave-build` branch comments them out and adds them to `hiddenimports`.
+It must run on an **Intel Mac with macOS 10.14** and Python 3.10. The script:
 
-**Conflict to check:** `scripts/cleanup_qt_frameworks.py` removes a base list including
-QtPdf/QtSvg/QtVirtualKeyboard, then unconditionally extends that list with QtQml,
-QtQmlMeta, QtQmlModels, QtQmlWorkerScript, QtQuick, QtNetwork, and QtOpenGL. If those are
-truly required on Mojave, the cleanup script can break the bundle after PyInstaller
-creates it. Test the resulting `.app` before shipping, especially on `mojave-build`.
+- creates `.venv-mojave` and installs `requirements-mojave.txt`
+  (Python 3.10, PySide6 6.3.2, lxml 5.3.2, PyInstaller 6.15);
+- builds `udj_gui_macos_legacy.spec`, which keeps QtQml/QtQuick and adds the
+  `pyi_rth_pyside6_macos.py` runtime hook;
+- trims unused Qt frameworks (WebEngine, 3D, Charts, Multimedia, ...) and ad-hoc
+  re-signs the bundle;
+- checks that the x86_64 slices report `minos` 10.14 or lower;
+- writes `Universal-DJ-USB-<version>-darwin-mojave-x64.dmg`.
+
+Do **not** run `scripts/cleanup_qt_frameworks.py` on the legacy bundle: it removes
+QtQml/QtQuick, which PySide6 6.3.2 needs on 10.14. The trimmed legacy bundle is about
+126 MB before DMG compression.
+
+See [mojave-legacy-build.md](../plans/mojave-legacy-build.md) for the build and
+validation checklist.
 
 ## PySide6 version
 
-- `pyproject.toml`: `PySide6>=6.5.0,<7`
-- `uv.lock`: currently resolves `6.9.1`
-- Spec comments and older docs mention `6.2.0` for Mojave compatibility
+- Modern build (`pyproject.toml`): `PySide6>=6.5.0,<7`; `uv.lock` resolves `6.9.1`.
+- Legacy Mojave build (`requirements-mojave.txt`): `PySide6==6.3.2` with Python 3.10.
 
-These are not the same claim. If Mojave requires a specific older PySide6, it needs an
-explicit pin and a tested build; do not describe 6.2.0 as the current project constraint
-without changing the dependency and lockfile. This is tracked as a proposed ADR.
+The two environments are deliberately separate. Do not raise the legacy pin without
+checking the x86_64 slice with `vtool -arch x86_64 -show-build`.
 
 ## Build/release checklist
 
@@ -163,6 +171,8 @@ without changing the dependency and lockfile. This is tracked as a proposed ADR.
 - [ ] `--clean` was combined with a build target on macOS.
 - [ ] The generated `.app`/`.exe` was launched, not just built.
 - [ ] Artifact names include version and architecture where expected.
+- [ ] If shipping the Mojave build, `build_mojave.sh` ran on macOS 10.14 and the legacy
+      checklist in [mojave-legacy-build.md](../plans/mojave-legacy-build.md) passed.
 - [ ] CI artifact layout matches what the release workflow downloads.
 - [ ] `docs/releases/<tag>.md` exists with a human-readable summary and detailed changelog.
 - [ ] No build output or secrets were committed.

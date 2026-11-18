@@ -27,6 +27,7 @@ MANIFEST
 # Virtual environments
 .env
 .venv
+.venv-mojave/
 env/
 venv/
 ENV/

@@ -1,60 +1,65 @@
 # ADR-0007: PySide6 and macOS 10.14 Support
 
-- **Status:** Proposed
-- **Date:** 2026-10-29
-- **Related:** [`build-release.md`](../agents/build-release.md#macos-1014--mojave), [`pitfalls.md`](../agents/pitfalls.md#build-and-release)
+- **Status:** Accepted
+- **Date:** 2026-11-18
+- **Related:** [`build-release.md`](../agents/build-release.md#macos-1014--mojave), [`mojave-legacy-build.md`](../plans/mojave-legacy-build.md)
 - **Supersedes:** —
 
 ## Context
 
-The project has conflicting signals about the supported PySide6 version and macOS range:
+The project ships one modern macOS build and needs one legacy macOS 10.14 (Mojave)
+GUI for an Intel machine that still uses the app. The CLI already runs there; the GUI
+does not.
 
-- `pyproject.toml` declares `PySide6>=6.5.0,<7`.
-- `uv.lock` currently resolves `6.9.1`.
-- macOS spec comments and older docs mention PySide6 `6.2.0` for macOS 10.14 Mojave
-  compatibility.
-- The `mojave-build` branch adds a runtime hook and rpath fixes for macOS 10.14, but those
-  changes are not on `main`.
-- `scripts/cleanup_qt_frameworks.py` removes QtQml/QtQuick/QtNetwork/QtOpenGL even though
-  the spec comments say QtQml/QtQuick are required on Mojave.
+`pyproject.toml` declares `PySide6>=6.5.0,<7`, and `uv.lock` resolves `6.9.1`. That
+PySide6 ships Qt wheels tagged `macosx_12_0`. The v0.3.0 app is x86_64, but its
+`QtCore` reports `minos 12.0`, so Mojave rejects it. Architecture is not the problem.
 
-A future agent cannot tell whether 6.2.0 is a current requirement, a historical note, or
-an aspiration.
+The old `mojave-build` branch added a runtime hook and rpath edits but kept PySide6
+6.9.1 in its environment, so it could not fix the version floor.
 
 ## Decision
 
-**TBD.** This ADR is proposed. Candidate options:
+Use **option B: a separate legacy Mojave build**, leaving the modern build untouched.
 
-- **A. Modern macOS only.** Keep `PySide6>=6.5,<7` and the lockfile; drop the 6.2.0/Mojave
-  claim and the Mojave-specific build work.
-- **B. Separate Mojave build.** Pin an older PySide6 and Python version in a separate
-  constraints file/job, with a tested `.app` and an explicit support statement.
-- **C. Matrix.** Build a modern PySide6 app for current macOS and a separate Mojave
-  artifact with pinned constraints.
+- Python **3.10** and **PySide6 6.3.2**, the last release whose x86_64 Qt 6.3
+  frameworks target macOS 10.14.
+- `lxml` **5.3.2** for the legacy environment. `lxml` 4.9.4 has no cp310 wheel for
+  10.14 (the wheel is tagged `macosx_11_0`).
+- Build on an Intel Mac running 10.14 with `build_mojave.sh`, using
+  `requirements-mojave.txt` and `udj_gui_macos_legacy.spec`.
+- Keep QtQml/QtQuick in the legacy bundle; PySide6 6.3.2 loads them on 10.14.
+- Publish the result as `Universal-DJ-USB-<version>-darwin-mojave-x64.dmg`.
 
-Until this is decided:
-
-- Do not describe 6.2.0 as the current project constraint.
-- Do not merge the Mojave runtime hook into `main` without testing the resulting `.app`.
-- Do not extend `cleanup_qt_frameworks.py` to remove frameworks that the spec says are
-  required on Mojave.
-
-## Consequences
-
-- Option A is the least maintenance but drops older hardware.
-- Option B requires solving Python/PySide6 compatibility and maintaining a second
-  environment.
-- Option C is the most user-friendly but doubles build/test coverage.
-- The decision affects `pyproject.toml`, `uv.lock`, specs, CI, and the docs.
-
-## Alternatives considered
-
-Listed above as candidate options.
+The modern build keeps `PySide6>=6.5,<7` and the current spec.
 
 ## Evidence
 
-- `pyproject.toml` — PySide6 constraint
-- `uv.lock` — resolved version
-- `udj_gui_macos.spec` — QtQml/QtQuick comments and hidden imports
-- `scripts/cleanup_qt_frameworks.py` — framework removal list
-- `mojave-build` branch — runtime hook and rpath changes
+`vtool -arch x86_64 -show-build` on the released v0.3.0 bundle:
+
+- CLI: `minos 10.13`.
+- App launcher: `minos 10.13`.
+- `QtCore` from PySide6 6.9.1: `minos 12.0`.
+
+The same check on PySide6 6.3.2 reports `minos 10.14` for `QtCore` and
+`libpyside6`. The test suite passes on Python 3.10 with PySide6 6.3.2 and lxml
+5.3.2.
+
+The Python runtime is a separate floor. uv's standalone Python 3.10 reports
+`minos 12.0` for its framework, so it cannot produce a Mojave app even with the old
+Qt. Use the python.org Python 3.10 installer (x86_64 slice targets 10.9) and build on
+the 10.14 machine.
+
+## Consequences
+
+- The modern macOS artifact remains the default and is unaffected.
+- One extra environment and spec must be maintained while Mojave is supported.
+- CI cannot launch a 10.14 artifact; the first build and each change need a manual
+  check on the Mojave Mac.
+- The legacy bundle remains larger than the modern one even after trimming.
+
+## Alternatives considered
+
+- **A. Modern macOS only.** Rejected: drops the one machine this work is for.
+- **C. Full build matrix.** Rejected for now: doubles coverage for a single legacy
+  user; a local legacy build is enough. Revisit if usage grows.
