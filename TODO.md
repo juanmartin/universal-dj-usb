@@ -6,6 +6,11 @@
   - [x] Verify CircleCI Linux + Windows on PR and tag pipelines
   - [x] Confirm the tag pipeline uploads the Windows assets to the draft release
   - [ ] Make the tag upload idempotent so a duplicate/rerun does not 404
+- [ ] 🍎 Validate the legacy macOS 10.14 GUI build on the Mojave Mac and publish a `-mojave-x64` DMG — [plan](docs/plans/mojave-legacy-build.md)
+  - [x] Pin Python 3.10 + PySide6 6.3.2 and add the legacy spec/runtime hook
+  - [x] Add `build_mojave.sh` with a deployment-target check
+  - [ ] Build, launch, and test conversions on the Mojave Mac
+  - [x] Trim unused Qt frameworks and re-sign ad-hoc in `build_mojave.sh`
 - [ ] ✨ Easy presets and an "Advanced" section: simplify the default flow and move detailed options behind Advanced
 - [ ] ✨ Support both Rekordbox library types (`export.pdb` and `exportLibrary.db`) with a library selector, so incomplete legacy PDB playlists are visible — [plan](docs/plans/onelibrary-support.md)
 - [x] 🐛 Correct version in app properties. `CFBundleVersion` in spec must read version from `pyproject.toml`

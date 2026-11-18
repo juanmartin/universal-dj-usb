@@ -1,0 +1,23 @@
+# Legacy macOS 10.14 (Mojave) GUI build -- Python 3.10 only.
+#
+# PySide6 6.3.2 is the last release whose x86_64 Qt 6.3 frameworks target
+# macOS 10.14. PySide6 6.4 requires 10.15, and 6.5+ require macOS 11.
+#
+# Do not upgrade these pins without checking the x86_64 slice with:
+#   vtool -arch x86_64 -show-build <QtCore binary>
+# The modern macOS build in pyproject.toml is separate; this file overrides it.
+
+PySide6==6.3.2
+
+click==8.1.8
+rich==13.9.4
+
+# lxml 4.9.x has no cp310 wheel for macOS 10.14 (4.9.4 is tagged 11.0).
+# 5.3.2 ships a macosx_10_9_x86_64 wheel and passes the existing test suite.
+lxml==5.3.2
+
+kaitaistruct==0.10
+mutagen==1.47.0
+psutil==5.9.8
+
+pyinstaller==6.15.0

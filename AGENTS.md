@@ -95,8 +95,11 @@ is currently small; see [development.md](docs/agents/development.md#testing-real
   CircleCI is the active CI ([ADR-0014](docs/adr/0014-circleci-active-ci.md)).
 - Next parser endeavor: OneLibrary/`exportLibrary.db` support; see
   [docs/plans/onelibrary-support.md](docs/plans/onelibrary-support.md).
-- `main` does **not** include the macOS 10.14/Mojave build work. That work is tracked on
-  the `mojave-build` branch (`pyi_rth_pyside6_macos.py` + rpath changes).
+- The modern macOS x64 build is **not** Mojave-compatible: its PySide6 6.9.1 Qt
+  targets macOS 12. A separate legacy build lives on `feat/mojave-legacy-build`:
+  `build_mojave.sh` + `requirements-mojave.txt` + `udj_gui_macos_legacy.spec`
+  (Python 3.10, PySide6 6.3.2), pending validation on a macOS 10.14 Mac
+  ([ADR-0007](docs/adr/0007-pyside6-mojave-support.md)).
 - [ADR-0006](docs/adr/0006-path-semantics.md) defines M3U/M3U8 path semantics;
   [ADR-0009](docs/adr/0009-nml-volume-relative-paths.md) defines NML as always
   volume-relative. Generators resolve PDB paths to real files first.

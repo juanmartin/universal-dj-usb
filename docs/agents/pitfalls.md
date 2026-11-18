@@ -113,10 +113,12 @@ the user's uncommitted work first.
   `pyproject.toml`; run PyInstaller from the repository root so the file resolves.
 - CI uploads the raw macOS `udj` binary, not the local CLI `tar.gz`; a `.app` `tar.gz` is
   only a no-DMG fallback.
-- `scripts/cleanup_qt_frameworks.py` removes QtQml/QtQuick/QtNetwork/QtOpenGL even though
-  the spec comments say QtQml/QtQuick are required for PySide6 on macOS 10.14. Test the
-  final `.app` on the Mojave path.
-- `main` does not include `pyi_rth_pyside6_macos.py`; that work is on `mojave-build`.
+- `scripts/cleanup_qt_frameworks.py` removes QtQml/QtQuick/QtNetwork/QtOpenGL. Never run
+  it on the legacy Mojave bundle: PySide6 6.3.2 needs QtQml/QtQuick on 10.14.
+- `build_mojave.sh` is the only Mojave path. It requires Python 3.10 and builds
+  `udj_gui_macos_legacy.spec`; the modern `build.sh` remains the default.
+- The modern `darwin-x64` DMG is not Mojave-compatible. Its QtCore reports `minos 12.0`
+  even though the app is x86_64; architecture does not imply an old OS floor.
 - The release workflow is guarded to tag-driven Build runs. Keep the
   `workflow_run.event == 'push'` guard; otherwise successful PR Builds can create draft
   releases.
